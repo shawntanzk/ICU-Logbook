@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "ICU Logbook",
+    "slug": "icu-logbook",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0F4C81"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.iculogbook.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F4C81"
+      },
+      "package": "com.iculogbook.app"
+    },
+    "web": {},
+    "plugins": [
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": false,
+          "useSQLCipher": false
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
