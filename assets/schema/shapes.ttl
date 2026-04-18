@@ -1,0 +1,63 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix icu: <https://w3id.org/iculogbook/ontology#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+icu:CaseShape a sh:NodeShape ;
+  sh:targetClass icu:Case ;
+  sh:property [
+    sh:path icu:schemaVersion ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path icu:diagnosis ;
+    sh:minCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] ;
+  sh:property [
+    sh:path icu:organSystem ;
+    sh:minCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] ;
+  sh:property [
+    sh:path icu:supervisionLevel ;
+    sh:maxCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] ;
+  sh:property [
+    sh:path icu:epochWeek ;
+    sh:datatype xsd:integer ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path icu:completenessScore ;
+    sh:datatype xsd:decimal ;
+    sh:minInclusive 0 ;
+    sh:maxInclusive 1 ;
+  ] ;
+  sh:property [
+    sh:path icu:codingConfidence ;
+    sh:datatype xsd:decimal ;
+    sh:minInclusive 0 ;
+    sh:maxInclusive 1 ;
+  ] .
+
+icu:ProcedureShape a sh:NodeShape ;
+  sh:targetClass icu:Procedure ;
+  sh:property [
+    sh:path icu:procedureType ;
+    sh:minCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] ;
+  sh:property [
+    sh:path icu:supervisionLevel ;
+    sh:maxCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] ;
+  sh:property [
+    sh:path icu:epochWeek ;
+    sh:datatype xsd:integer ;
+    sh:minCount 1 ;
+  ] .

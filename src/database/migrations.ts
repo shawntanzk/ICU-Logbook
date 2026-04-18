@@ -37,10 +37,44 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
       `INSERT OR IGNORE INTO schema_version (version) VALUES (1)`,
     ],
   },
+  {
+    // v2 — FAIR / semantic-export upgrade. Adds terminology-bound JSON
+    // columns, provenance, quality, consent and schema-version tags. The
+    // original columns are preserved so existing rows remain queryable
+    // and legacy UI code keeps working without a rewrite.
+    version: 2,
+    statements: [
+      // Per-install key/value store (device ID, consent status, etc.)
+      `CREATE TABLE IF NOT EXISTS app_settings (
+        key   TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      )`,
+
+      // case_logs — coded + metadata columns
+      `ALTER TABLE case_logs ADD COLUMN schema_version TEXT NOT NULL DEFAULT '2.0.0'`,
+      `ALTER TABLE case_logs ADD COLUMN diagnosis_coded TEXT`,                              // JSON CodedValue | null
+      `ALTER TABLE case_logs ADD COLUMN organ_systems_coded TEXT NOT NULL DEFAULT '[]'`,    // JSON CodedValue[]
+      `ALTER TABLE case_logs ADD COLUMN cobatrice_domains_coded TEXT NOT NULL DEFAULT '[]'`,// JSON CodedValue[]
+      `ALTER TABLE case_logs ADD COLUMN supervision_level_coded TEXT`,                      // JSON CodedValue
+      `ALTER TABLE case_logs ADD COLUMN provenance TEXT`,                                   // JSON Provenance
+      `ALTER TABLE case_logs ADD COLUMN quality TEXT`,                                      // JSON Quality
+      `ALTER TABLE case_logs ADD COLUMN consent_status TEXT NOT NULL DEFAULT 'anonymous'`,
+      `ALTER TABLE case_logs ADD COLUMN license TEXT NOT NULL DEFAULT 'CC-BY-NC-4.0'`,
+
+      // procedure_logs — coded + metadata columns
+      `ALTER TABLE procedure_logs ADD COLUMN schema_version TEXT NOT NULL DEFAULT '2.0.0'`,
+      `ALTER TABLE procedure_logs ADD COLUMN procedure_type_coded TEXT`,
+      `ALTER TABLE procedure_logs ADD COLUMN provenance TEXT`,
+      `ALTER TABLE procedure_logs ADD COLUMN quality TEXT`,
+      `ALTER TABLE procedure_logs ADD COLUMN consent_status TEXT NOT NULL DEFAULT 'anonymous'`,
+      `ALTER TABLE procedure_logs ADD COLUMN license TEXT NOT NULL DEFAULT 'CC-BY-NC-4.0'`,
+
+      `INSERT OR IGNORE INTO schema_version (version) VALUES (2)`,
+    ],
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
-  // Determine current DB version
   let currentVersion = 0;
   try {
     const row = await db.getFirstAsync<{ version: number }>(
@@ -48,7 +82,6 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     );
     currentVersion = row?.version ?? 0;
   } catch {
-    // schema_version table doesn't exist yet — run from scratch
     currentVersion = 0;
   }
 
@@ -57,7 +90,6 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
     for (const statement of migration.statements) {
       await db.execAsync(statement);
     }
-    // Update version after each successful migration
     await db.runAsync(
       'INSERT OR REPLACE INTO schema_version (version) VALUES (?)',
       [migration.version]

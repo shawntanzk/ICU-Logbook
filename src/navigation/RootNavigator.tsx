@@ -12,6 +12,7 @@ import {
   ProceduresStackParamList,
   DashboardStackParamList,
   RootStackParamList,
+  SettingsStackParamList,
 } from './types';
 
 // Screens
@@ -24,12 +25,15 @@ import { AddCaseScreen } from '../screens/AddCaseScreen';
 import { ProcedureListScreen } from '../screens/ProcedureListScreen';
 import { AddProcedureScreen } from '../screens/AddProcedureScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { ConsentScreen } from '../screens/ConsentScreen';
+import { ExportScreen } from '../screens/ExportScreen';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const CasesStack = createNativeStackNavigator<CasesStackParamList>();
 const ProceduresStack = createNativeStackNavigator<ProceduresStackParamList>();
+const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 
 const stackScreenOptions = {
   headerStyle: { backgroundColor: COLORS.primary },
@@ -52,6 +56,16 @@ function CasesNavigator() {
       <CasesStack.Screen name="CaseList" component={CaseListScreen} options={{ title: 'Case Log' }} />
       <CasesStack.Screen name="CaseDetail" component={CaseDetailScreen} options={{ title: 'Case Details' }} />
     </CasesStack.Navigator>
+  );
+}
+
+function SettingsNavigator() {
+  return (
+    <SettingsStack.Navigator screenOptions={stackScreenOptions}>
+      <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <SettingsStack.Screen name="Consent" component={ConsentScreen} options={{ title: 'Data Sharing' }} />
+      <SettingsStack.Screen name="Export" component={ExportScreen} options={{ title: 'Export Data' }} />
+    </SettingsStack.Navigator>
   );
 }
 
@@ -118,18 +132,7 @@ function MainTabs() {
         }}
       />
       <Tab.Screen name="Procedures" component={ProceduresNavigator} options={{ tabBarLabel: 'Procedures' }} />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: 'Settings',
-          headerShown: true,
-          headerTitle: 'Settings',
-          headerStyle: { backgroundColor: COLORS.primary },
-          headerTintColor: COLORS.white,
-          headerTitleStyle: { fontWeight: '600', fontSize: FONT_SIZE.md },
-        }}
-      />
+      <Tab.Screen name="Settings" component={SettingsNavigator} options={{ tabBarLabel: 'Settings' }} />
     </Tab.Navigator>
   );
 }

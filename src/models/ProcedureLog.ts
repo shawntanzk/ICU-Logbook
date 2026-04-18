@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { CodedValueSchema } from './CodedValue';
+import { ProvenanceSchema, QualitySchema, ConsentStatusEnum } from './Provenance';
 
 export const ProcedureLogSchema = z.object({
   caseId: z.string().optional(),
@@ -15,4 +17,27 @@ export interface ProcedureLog extends ProcedureLogInput {
   createdAt: string;
   updatedAt: string;
   synced: boolean;
+
+  // ── Semantic layer ────────────────────────────────────────────────
+  schemaVersion: string;
+  procedureTypeCoded: import('./CodedValue').CodedValue;
+
+  // ── Metadata / provenance ────────────────────────────────────────
+  provenance: import('./Provenance').Provenance;
+  quality: import('./Provenance').Quality;
+  consentStatus: import('./Provenance').ConsentStatus;
+  license: string;
 }
+
+export const FullProcedureLogSchema = ProcedureLogSchema.extend({
+  id: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  synced: z.boolean(),
+  schemaVersion: z.string(),
+  procedureTypeCoded: CodedValueSchema,
+  provenance: ProvenanceSchema,
+  quality: QualitySchema,
+  consentStatus: ConsentStatusEnum,
+  license: z.string(),
+});

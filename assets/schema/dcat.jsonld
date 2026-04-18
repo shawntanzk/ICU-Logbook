@@ -1,0 +1,51 @@
+{
+  "@context": {
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "spdx": "http://spdx.org/rdf/terms#"
+  },
+  "@id": "https://w3id.org/iculogbook/catalog",
+  "@type": "dcat:Catalog",
+  "dcterms:title": "ICU Logbook Data Catalog",
+  "dcterms:description": "De-identified, semantically-bound intensive-care training records. Each dataset is a snapshot of cases and procedures logged through the ICU Logbook app, filtered by the contributing trainee's data-sharing consent.",
+  "dcterms:publisher": {
+    "@type": "foaf:Organization",
+    "foaf:name": "ICU Logbook"
+  },
+  "dcterms:license": "https://creativecommons.org/licenses/by-nc/4.0/",
+  "dcat:dataset": [
+    {
+      "@id": "https://w3id.org/iculogbook/dataset/anonymous-aggregate",
+      "@type": "dcat:Dataset",
+      "dcterms:title": "Anonymous aggregate statistics",
+      "dcterms:description": "Aggregated case-volume and competency benchmarks. No individual records released.",
+      "dcat:keyword": ["intensive-care", "training", "aggregate", "benchmark"],
+      "dcterms:conformsTo": "https://w3id.org/iculogbook/ontology"
+    },
+    {
+      "@id": "https://w3id.org/iculogbook/dataset/research",
+      "@type": "dcat:Dataset",
+      "dcterms:title": "Research-consent records",
+      "dcterms:description": "Individual de-identified records from users who consented to non-commercial research use.",
+      "dcterms:accessRights": "Restricted — academic / training-body research partners only",
+      "dcterms:conformsTo": "https://w3id.org/iculogbook/ontology",
+      "dcat:distribution": [
+        { "dcat:mediaType": "application/fhir+json" },
+        { "dcat:mediaType": "application/ld+json" },
+        { "dcat:mediaType": "application/openehr+json" }
+      ]
+    },
+    {
+      "@id": "https://w3id.org/iculogbook/dataset/commercial",
+      "@type": "dcat:Dataset",
+      "dcterms:title": "Commercial-consent records",
+      "dcterms:description": "Individual de-identified records from users who consented to commercial data-product use.",
+      "dcterms:conformsTo": "https://w3id.org/iculogbook/ontology",
+      "dcat:distribution": [
+        { "dcat:mediaType": "application/fhir+json" },
+        { "dcat:mediaType": "application/ld+json" }
+      ]
+    }
+  ]
+}

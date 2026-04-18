@@ -6,9 +6,12 @@ import { useSyncStore } from '../store/syncStore';
 import { useAuthStore } from '../store/authStore';
 import { useCaseStore } from '../store/caseStore';
 import { useProcedureStore } from '../store/procedureStore';
+import { useConsentStore } from '../store/consentStore';
 import { Card } from '../components/Card';
 import { COLORS, FONT_SIZE, SPACING, RADIUS } from '../utils/constants';
 import { formatDateTime } from '../utils/dateUtils';
+import type { SettingsStackParamList } from '../navigation/types';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 function SettingRow({
   icon,
@@ -71,11 +74,14 @@ function SyncPill({ pending, syncing }: { pending: number; syncing: boolean }) {
   );
 }
 
-export function SettingsScreen() {
+type Props = NativeStackScreenProps<SettingsStackParamList, 'SettingsHome'>;
+
+export function SettingsScreen({ navigation }: Props) {
   const { cases } = useCaseStore();
   const { procedures } = useProcedureStore();
   const { isSyncing, status, lastResult, error, sync, refreshStatus } = useSyncStore();
   const { userName, role, logout } = useAuthStore();
+  const consentStatus = useConsentStore((s) => s.status);
 
   useEffect(() => {
     refreshStatus();
@@ -113,7 +119,11 @@ export function SettingsScreen() {
   }
 
   function handleExport() {
-    Alert.alert('Export Data', 'CSV/PDF export will be available in a future release.');
+    navigation.navigate('Export');
+  }
+
+  function handleConsent() {
+    navigation.navigate('Consent');
   }
 
   return (
@@ -180,8 +190,22 @@ export function SettingsScreen() {
 
         {/* Data management */}
         <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Management</Text>
-          <SettingRow icon="download-outline" label="Export Data" onPress={handleExport} />
+          <Text style={styles.sectionTitle}>Data Sharing & Export</Text>
+          <SettingRow
+            icon="shield-checkmark-outline"
+            label="Data sharing consent"
+            value={
+              consentStatus === 'none'
+                ? 'Private'
+                : consentStatus.charAt(0).toUpperCase() + consentStatus.slice(1)
+            }
+            onPress={handleConsent}
+          />
+          <SettingRow
+            icon="download-outline"
+            label="Export (FHIR / openEHR / JSON-LD)"
+            onPress={handleExport}
+          />
           <SettingRow icon="trash-outline" label="Clear All Data" onPress={handleClearData} destructive />
         </Card>
 

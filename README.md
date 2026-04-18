@@ -16,10 +16,11 @@ A cross-platform mobile app for ICU trainees and supervisors to log clinical cas
 8. [Running the App](#8-running-the-app)
 9. [Using the App](#9-using-the-app)
 10. [Data & Privacy](#10-data--privacy)
-11. [Architecture Decisions](#11-architecture-decisions)
-12. [Extending the App](#12-extending-the-app)
-13. [Troubleshooting](#13-troubleshooting)
-14. [Glossary](#14-glossary)
+11. [FAIR Semantic Data Product](#11-fair-semantic-data-product)
+12. [Architecture Decisions](#12-architecture-decisions)
+13. [Extending the App](#13-extending-the-app)
+14. [Troubleshooting](#14-troubleshooting)
+15. [Glossary](#15-glossary)
 
 ---
 
@@ -57,6 +58,11 @@ All data is stored **on the device** first (offline-first). A sync button upload
 - **Sync** — sync button in Settings shows real pending count, uploads to a mock Supabase client, marks records synced, shows last sync time.
 - **Supervisor mode** — read-only; Add Case screen is locked, delete buttons hidden, supervisor banner displayed.
 - **Offline-first** — all data saved locally to SQLite before any network call.
+- **Semantic coding** — every case and procedure is silently bound to SNOMED CT, ICD-10, CoBaTrICE, and Ottawa EPA codes at save-time. The UX doesn't change; the data underneath becomes machine-readable.
+- **Data-sharing consent** — four-way consent model (private / anonymous aggregate / research / commercial). Default is private until the user explicitly chooses.
+- **Standards-based export** — export all consented records as HL7 FHIR R4 Bundle, openEHR Composition, JSON-LD (semantic linked data), or a human-readable data dictionary. Accessed from Settings → Data Sharing & Export.
+- **Provenance + quality metadata** — every record carries app version, schema version, locale, timezone, completeness score, and coding confidence. Consumers can audit what they're buying.
+- **De-identification pipeline** — exports scrub PII patterns, shift dates to epoch-week, and redact device IDs automatically.
 
 ### Not yet implemented (see [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md))
 
@@ -368,12 +374,120 @@ If you logged in as a **Supervisor**:
 - No data is sent anywhere unless you tap **Sync Now**
 - In this demo, the sync target is a mock client — no real server receives any data
 - Deleting the app removes all local data permanently
+- **Data-sharing consent** is explicitly opt-in. The default is *Private* — records never leave the device until the user selects one of Anonymous / Research / Commercial in **Settings → Data sharing consent**.
+- **Exports are de-identified at the client.** Free-text fields are scrubbed for PII patterns, dates are shifted to epoch-week, and device IDs are redacted before any payload leaves the app. See [Section 11: FAIR Semantic Data Product](#11-fair-semantic-data-product).
 
 > For clinical deployment, refer to [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md) for data governance, encryption, and HIPAA/GDPR compliance requirements.
 
 ---
 
-## 11. Architecture Decisions
+## 11. FAIR Semantic Data Product
+
+The ICU Logbook is designed so the data it collects is not just useful to the trainee who logged it, but also usable — long after the fact, by people who have never seen the app — as a **FAIR** (Findable, Accessible, Interoperable, Reusable) semantic data product. The goal is to be able to sell de-identified, consented records to research partners and data-product buyers worldwide, with zero re-engineering of the source data.
+
+This section documents the architecture that makes that possible.
+
+### 11.1 Principles
+
+| FAIR letter | What it means here |
+|---|---|
+| **Findable** | Every case/procedure has a persistent IRI (`https://w3id.org/iculogbook/id/case/<uuid>`). Datasets are described in a DCAT catalog (`assets/schema/dcat.jsonld`). |
+| **Accessible** | Records export in three open standards: HL7 FHIR R4 JSON, openEHR JSON, and JSON-LD 1.1. Share via the OS share-sheet or (future) AWS endpoint. |
+| **Interoperable** | All clinical concepts bind to public code systems — SNOMED CT, ICD-10, LOINC (planned), CoBaTrICE, Ottawa EPA — via a FHIR-style `CodedValue {system, code, display, mappings[]}` shape. |
+| **Reusable** | Every record ships with provenance (app version, schema version, locale, timezone), a completeness + coding-confidence score, an SPDX license identifier (`CC-BY-NC-4.0` by default), and a consent status. |
+
+### 11.2 Terminology bindings
+
+The app holds a curated mapping from its local identifiers (what the user picks in the UI) to canonical codes (what gets exported):
+
+| Concept | Bound to | File |
+|---|---|---|
+| Diagnosis (ICD-10) | ICD-10 + optional SNOMED CT | `src/data/icd10.ts` |
+| Organ system | SNOMED CT body-structure codes | `src/data/organSystems.ts` |
+| CoBaTrICE domain | `https://w3id.org/iculogbook/cobatrice/<id>` | `src/data/cobatrice.ts` |
+| Supervision level | Ottawa EPA entrustment scale | `src/data/supervision.ts` |
+| Procedure type | SNOMED CT procedure codes (where available) | `src/data/procedures.ts` |
+
+The canonical URIs for every code system live in `src/data/codeSystems.ts`. Persistent IRIs use [w3id.org](https://w3id.org) redirects so the identifier stays stable even if hosting moves.
+
+### 11.3 Record shape (v2 schema)
+
+Every saved `CaseLog` and `ProcedureLog` now carries, in addition to the original user-facing fields:
+
+- `schemaVersion` — currently `"2.0.0"`
+- `*Coded` fields — FHIR-Coding-shaped objects for every categorical field
+- `provenance` — `{ appVersion, schemaVersion, deviceId, platform, locale, timezone }`
+- `quality` — `{ completeness: 0–1, codingConfidence: 0–1 }`
+- `consentStatus` — one of `none | anonymous | research | commercial`
+- `license` — SPDX identifier (default `CC-BY-NC-4.0`)
+
+Original columns (`diagnosis`, `organSystems`, `cobatriceDomains`, `supervisionLevel`) are preserved unchanged so the existing UI and sync path keep working. The v2 migration is additive (`ALTER TABLE ADD COLUMN`), so no existing data is touched.
+
+### 11.4 Consent model
+
+Consent is asked explicitly (`src/screens/ConsentScreen.tsx`) and persisted via `ConsentService`. Four options:
+
+1. **Private** — records never leave the device.
+2. **Anonymous aggregate only** — may be included in de-identified aggregate statistics (e.g. case-volume benchmarks). No individual record is ever released.
+3. **Research** — additionally, fully-anonymised individual records may be shared with academic / training-body research partners under a non-commercial licence.
+4. **Commercial** — additionally, fully-anonymised individual records may be included in commercial data products.
+
+Default is `none` until the user makes an explicit choice. Consent status is attached to each record at save-time, so changing consent later only affects future records (the audit trail remains honest).
+
+### 11.5 Export formats
+
+From **Settings → Data Sharing & Export → Export (FHIR / openEHR / JSON-LD)**:
+
+| Format | File | What it produces |
+|---|---|---|
+| **HL7 FHIR R4 Bundle** | `src/services/export/FHIRExporter.ts` | One Bundle containing Encounter + Condition + Observation (supervision, competency) + Provenance + Quality per case, plus Procedure resources. |
+| **openEHR Composition** | `src/services/export/OpenEHRExporter.ts` | Composition with EVALUATION (problem_diagnosis), OBSERVATION (organ_system), and EVALUATION (entrustment) entries. |
+| **JSON-LD 1.1** | `src/services/export/JSONLDExporter.ts` | Linked-data export with an inline `@context`. Parseable as RDF; joinable with any other SNOMED/ICD-10-coded dataset. |
+| **Data dictionary** | `src/services/export/DataDictionary.ts` | Human-readable codebook describing every field and its terminology binding. Markdown. |
+
+All formats filter by consent: only records with `consentStatus ∈ {anonymous, research, commercial}` are exported. Free-text fields are scrubbed for PII patterns, dates are shifted to epoch-week, and device IDs are redacted (`src/services/DeidentifyService.ts`).
+
+### 11.6 Schema assets
+
+The static schema artefacts live in `assets/schema/` and are intended to be published at stable URLs (e.g. via w3id.org redirects):
+
+| File | Purpose | Canonical URL (planned) |
+|---|---|---|
+| `context.jsonld` | JSON-LD `@context` for every exported term | `https://w3id.org/iculogbook/context/v1.jsonld` |
+| `ontology.ttl` | OWL ontology — classes, properties, labels, comments | `https://w3id.org/iculogbook/ontology` |
+| `shapes.ttl` | SHACL shapes — validation rules for Case/Procedure | `https://w3id.org/iculogbook/shapes` |
+| `dcat.jsonld` | DCAT catalog describing the three published datasets | `https://w3id.org/iculogbook/catalog` |
+
+Consumers point their RDF toolchain at these URLs and get a fully self-describing, validatable dataset.
+
+### 11.7 Backend plan (AWS, central)
+
+Current sync client is a mock (`src/services/supabase.ts`). The production target is a central AWS backend (S3 + Postgres/RDS + API Gateway + Cognito). The worldwide rollout model is:
+
+1. Device logs records locally (offline-first unchanged).
+2. On sync, records upload to the trainee's private cloud store, with consent status attached.
+3. The backend maintains three derived views per consent level, refreshed on each sync. Buyers query only the view matching their contract.
+4. Since everything is already de-identified at the client before upload, there is no need for region-specific governance tooling — the dataset is fully anonymised at source.
+
+### 11.8 Unit of sale (TBD)
+
+Current architecture supports any of three billing models — no data-model change needed:
+
+- **Per-record** — each `CaseLog` / `ProcedureLog` is individually priceable via its persistent IRI.
+- **Per-snapshot** — quarterly DCAT distributions, cited by DOI (via DataCite).
+- **Per-stream** — live subscription feed off the derived views.
+
+We recommend starting with per-snapshot DOIs for research partners (highest academic legibility) and per-record for commercial integrations (cleanest contract boundary).
+
+### 11.9 What we deliberately did *not* change
+
+- The logbook UX. Users still pick chips and write reflections — there is no coding burden added to any screen.
+- Existing columns in SQLite. The v2 migration is additive; v1 data stays queryable.
+- Platform coverage. Web builds continue to work via the existing `.native.ts` / `.web.ts` split.
+
+---
+
+## 12. Architecture Decisions
 
 These decisions are recorded so future developers understand the reasoning.
 
@@ -403,7 +517,7 @@ This is the simplest possible offline-sync pattern (sometimes called "sync flag"
 
 ---
 
-## 12. Extending the App
+## 13. Extending the App
 
 ### Adding a real Supabase backend
 
@@ -462,7 +576,7 @@ Edit `src/utils/constants.ts`. Add new entries to `COBATRICE_DOMAINS` or `ORGAN_
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 ### "npm install" fails
 
@@ -500,7 +614,7 @@ This usually means the database failed to open. Check that:
 
 ---
 
-## 14. Glossary
+## 15. Glossary
 
 | Term | Meaning |
 |---|---|
@@ -519,3 +633,21 @@ This usually means the database failed to open. Check that:
 | **Migration** | A versioned script that updates the database structure without losing existing data |
 | **Sync flag** | A boolean field (`synced`) that tracks whether a record has been uploaded to the cloud |
 | **MVP** | Minimum Viable Product — the simplest version of the app that delivers core value |
+| **FAIR** | Findable, Accessible, Interoperable, Reusable — a set of principles for scientific data management |
+| **SNOMED CT** | Systematized Nomenclature of Medicine — Clinical Terms. The most comprehensive clinical terminology in the world. |
+| **LOINC** | Logical Observation Identifiers Names and Codes — a code system for laboratory and clinical observations |
+| **CoBaTrICE** | Competency Based Training in Intensive Care Medicine for Europe — a 12-domain competency framework |
+| **Ottawa EPA** | Ottawa Entrustable Professional Activity framework — standard scale for supervision / entrustment |
+| **FHIR** | Fast Healthcare Interoperability Resources — HL7's JSON-based healthcare data standard |
+| **openEHR** | An open standard for structured electronic health records, widely used in EU research |
+| **JSON-LD** | JSON for Linked Data — adds semantic meaning to JSON via a `@context` |
+| **RDF** | Resource Description Framework — W3C standard for representing linked data |
+| **OWL** | Web Ontology Language — W3C standard for representing ontologies |
+| **SHACL** | Shapes Constraint Language — W3C standard for validating RDF data |
+| **DCAT** | Data Catalog Vocabulary — W3C standard for describing datasets in a catalog |
+| **PROV-O** | Provenance Ontology — W3C standard for describing where data came from |
+| **IRI** | Internationalised Resource Identifier — a persistent URL that identifies a resource |
+| **w3id.org** | A permanent-identifier redirect service used for ontology URIs that must outlive any specific host |
+| **SPDX** | Software Package Data Exchange — a standard for declaring licenses by short identifier (e.g. `CC-BY-NC-4.0`) |
+| **DataCite / DOI** | Digital Object Identifiers for datasets — citable, persistent references |
+| **Epoch week** | ISO week number since Unix epoch. A de-identification technique that preserves temporal patterns without exposing exact dates. |

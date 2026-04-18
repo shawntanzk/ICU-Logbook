@@ -5,7 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
+  ScrollView,
 } from 'react-native';
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from '../utils/constants';
 import { ICD10Entry, searchICD10, findByCode } from '../data/icd10';
@@ -82,25 +82,24 @@ export function ICD10Autocomplete({
         autoCorrect={false}
       />
       {focused && suggestions.length > 0 ? (
-        <View style={styles.dropdown}>
-          <FlatList
-            data={suggestions}
-            keyExtractor={(item) => item.code}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.option}
-                onPress={() => handleSelect(item)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.optionText} numberOfLines={2}>
-                  {item.label} <Text style={styles.optionCode}>[{item.code}]</Text>
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
+        <ScrollView
+          style={styles.dropdown}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
+          {suggestions.map((item) => (
+            <TouchableOpacity
+              key={item.code}
+              style={styles.option}
+              onPress={() => handleSelect(item)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.optionText} numberOfLines={2}>
+                {item.label} <Text style={styles.optionCode}>[{item.code}]</Text>
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>

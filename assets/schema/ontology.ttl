@@ -1,0 +1,75 @@
+@prefix icu: <https://w3id.org/iculogbook/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+<https://w3id.org/iculogbook/ontology> a owl:Ontology ;
+  dcterms:title "ICU Logbook Ontology" ;
+  dcterms:description "Ontology for intensive-care training logbook records. Binds local concepts to SNOMED CT, ICD-10, LOINC, CoBaTrICE, and Ottawa EPA terminologies." ;
+  owl:versionInfo "2.0.0" ;
+  dcterms:license <https://creativecommons.org/licenses/by-nc/4.0/> .
+
+# ─── Classes ─────────────────────────────────────────────────────────────────
+icu:Case a owl:Class ;
+  rdfs:label "ICU Case" ;
+  rdfs:comment "A single clinical case logged by a trainee during ICU training." ;
+  rdfs:subClassOf prov:Entity .
+
+icu:Procedure a owl:Class ;
+  rdfs:label "ICU Procedure" ;
+  rdfs:comment "A discrete procedure performed and logged by a trainee." ;
+  rdfs:subClassOf prov:Entity .
+
+icu:SupervisionLevel a owl:Class ;
+  rdfs:label "Supervision Level" ;
+  rdfs:comment "Ottawa EPA entrustment level at which the learner performed the activity." .
+
+icu:CoBaTrICEDomain a owl:Class ;
+  rdfs:label "CoBaTrICE Competency Domain" ;
+  rdfs:comment "One of the 12 domains of the CoBaTrICE intensive-care competency framework." .
+
+# ─── Object properties ───────────────────────────────────────────────────────
+icu:diagnosis a owl:ObjectProperty ;
+  rdfs:domain icu:Case ;
+  rdfs:comment "Primary diagnosis, bound to ICD-10 with optional SNOMED mapping." .
+
+icu:organSystem a owl:ObjectProperty ;
+  rdfs:domain icu:Case ;
+  rdfs:comment "Organ system(s) involved, bound to SNOMED body-structure codes." .
+
+icu:cobatriceDomain a owl:ObjectProperty ;
+  rdfs:domain [ a owl:Class ; owl:unionOf ( icu:Case icu:Procedure ) ] ;
+  rdfs:range icu:CoBaTrICEDomain .
+
+icu:supervisionLevel a owl:ObjectProperty ;
+  rdfs:domain [ a owl:Class ; owl:unionOf ( icu:Case icu:Procedure ) ] ;
+  rdfs:range icu:SupervisionLevel .
+
+icu:procedureType a owl:ObjectProperty ;
+  rdfs:domain icu:Procedure ;
+  rdfs:comment "Type of procedure, bound to SNOMED procedure codes where available." .
+
+# ─── Data properties ─────────────────────────────────────────────────────────
+icu:epochWeek a owl:DatatypeProperty ;
+  rdfs:comment "ISO week number since Unix epoch. De-identified substitute for exact date." ;
+  rdfs:range xsd:integer .
+
+icu:schemaVersion a owl:DatatypeProperty ; rdfs:range xsd:string .
+icu:appVersion a owl:DatatypeProperty ; rdfs:range xsd:string .
+icu:severity a owl:DatatypeProperty ; rdfs:range xsd:string .
+icu:outcome a owl:DatatypeProperty ; rdfs:range xsd:string .
+icu:learningPoints a owl:DatatypeProperty ; rdfs:range xsd:string .
+icu:durationMinutes a owl:DatatypeProperty ; rdfs:range xsd:integer .
+
+# ─── Quality ─────────────────────────────────────────────────────────────────
+icu:completenessScore a owl:DatatypeProperty ;
+  rdfs:comment "Fraction of core fields populated (0–1)." ;
+  rdfs:range xsd:decimal .
+
+icu:codingConfidence a owl:DatatypeProperty ;
+  rdfs:comment "Fraction of bindings pointing to a public code system rather than an app-local identifier (0–1)." ;
+  rdfs:range xsd:decimal .

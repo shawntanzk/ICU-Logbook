@@ -1,0 +1,46 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "icu": "https://w3id.org/iculogbook/ontology#",
+    "id": "https://w3id.org/iculogbook/id/",
+    "prov": "http://www.w3.org/ns/prov#",
+    "dcterms": "http://purl.org/dc/terms/",
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "snomed": "http://snomed.info/sct/",
+    "icd10": "http://hl7.org/fhir/sid/icd-10/",
+    "icd10cm": "http://hl7.org/fhir/sid/icd-10-cm/",
+    "loinc": "http://loinc.org/",
+    "rxnorm": "http://www.nlm.nih.gov/research/umls/rxnorm/",
+    "ucum": "http://unitsofmeasure.org/",
+    "cobatrice": "https://w3id.org/iculogbook/cobatrice/",
+    "ottawa": "https://w3id.org/iculogbook/ottawa-epa/",
+
+    "Case": "icu:Case",
+    "Procedure": "icu:Procedure",
+
+    "diagnosis": { "@id": "icu:diagnosis", "@type": "@id" },
+    "organSystems": { "@id": "icu:organSystem", "@type": "@id", "@container": "@set" },
+    "cobatriceDomains": { "@id": "icu:cobatriceDomain", "@type": "@id", "@container": "@set" },
+    "supervisionLevel": { "@id": "icu:supervisionLevel", "@type": "@id" },
+    "procedureType": { "@id": "icu:procedureType", "@type": "@id" },
+
+    "severity": "icu:severity",
+    "outcome": "icu:outcome",
+    "learningPoints": "icu:learningPoints",
+    "epochWeek": { "@id": "icu:epochWeek", "@type": "xsd:integer" },
+    "durationMin": { "@id": "icu:durationMinutes", "@type": "xsd:integer" },
+    "locale": "dcterms:language",
+    "license": { "@id": "dcterms:license", "@type": "@id" },
+    "schemaVersion": "icu:schemaVersion",
+    "appVersion": "icu:appVersion",
+
+    "quality": "icu:quality",
+    "completeness": { "@id": "icu:completenessScore", "@type": "xsd:decimal" },
+    "codingConfidence": { "@id": "icu:codingConfidence", "@type": "xsd:decimal" },
+
+    "provenance": "prov:wasGeneratedBy",
+    "generatedAtTime": { "@id": "prov:generatedAtTime", "@type": "xsd:dateTime" }
+  }
+}

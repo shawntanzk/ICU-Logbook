@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initializeDatabase } from './src/database/client';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { useConsentStore } from './src/store/consentStore';
 import { COLORS, FONT_SIZE } from './src/utils/constants';
 
 type AppState = 'loading' | 'ready' | 'error';
@@ -14,6 +15,7 @@ export default function App() {
 
   useEffect(() => {
     initializeDatabase()
+      .then(() => useConsentStore.getState().hydrate())
       .then(() => setState('ready'))
       .catch((err: unknown) => {
         console.error('DB init failed:', err);
