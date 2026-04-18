@@ -17,6 +17,7 @@ import { FormField } from '../components/FormField';
 import { MultiSelect } from '../components/MultiSelect';
 import { RadioGroup } from '../components/RadioGroup';
 import { Button } from '../components/Button';
+import { ICD10Autocomplete } from '../components/ICD10Autocomplete';
 import {
   COLORS,
   SPACING,
@@ -126,14 +127,13 @@ export function AddCaseScreen() {
             autoCapitalize="sentences"
           />
 
-          {/* ICD-10 */}
-          <FormField
+          {/* ICD-10 — autocomplete shows "<label> [CODE]", saves code only */}
+          <ICD10Autocomplete
             label="ICD-10 Code"
-            placeholder="e.g. A41.9"
             value={form.icd10Code ?? ''}
-            onChangeText={(v) => update('icd10Code', v)}
+            onChange={(v) => update('icd10Code', v)}
             error={errors.icd10Code}
-            autoCapitalize="characters"
+            hint="Start typing a diagnosis or code"
           />
 
           {/* Organ Systems */}

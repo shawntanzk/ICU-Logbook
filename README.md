@@ -91,7 +91,7 @@ A legend at the bottom explains the colour scale.
 A scrollable form. Fields:
 1. **Date** — type in YYYY-MM-DD format (e.g. `2026-04-17`)
 2. **Primary Diagnosis** — free text
-3. **ICD-10 Code** — optional (e.g. `A41.9`)
+3. **ICD-10 Code** — autocomplete. Start typing a diagnosis (e.g. *sepsis*) or a code (e.g. *A41*); the dropdown shows matches as `Diagnosis [CODE]`. Pick one and the human-readable label stays in the field, but only the bare code (e.g. `A41.9`) is written to the database — keeping the data compact and interoperable with external coding systems.
 4. **Organ Systems** — tap chips to multi-select (Respiratory, Cardiovascular, etc.)
 5. **CoBaTrICE Domains** — tap chips to multi-select (12 domains)
 6. **Supervision Level** — radio buttons: Observed / Supervised / Unsupervised
@@ -423,6 +423,24 @@ The AI Summary button in `CaseDetailScreen.tsx` (function `handleAISummary`) cur
 1. Create `src/services/AIService.ts`
 2. Call `https://api.anthropic.com/v1/messages` with the case data as context
 3. Replace the `Alert.alert(...)` in `handleAISummary` with the API response
+
+### Extending the ICD-10 list
+
+The autocomplete is backed by a curated list in `src/data/icd10.ts` — roughly 130 ICU-relevant codes covering sepsis, respiratory failure, MI/arrest, stroke, AKI, DKA, trauma, poisoning and similar presentations. To add a code, append a new entry to the `ICD10_CODES` array:
+
+```ts
+{ code: 'J96.90', label: 'Respiratory failure, unspecified' },
+```
+
+No other wiring is needed — the autocomplete, search ranking, and `findByCode` helper all read from this array.
+
+**Why a curated list instead of the full 70,000-code dataset?** Three reasons:
+
+1. **UX.** An intensivist logging a case after a 12-hour shift wants 5–10 plausible suggestions, not a scroll of sub-specialty orthopaedic fracture codes. Curation keeps the signal-to-noise ratio high and reduces miscoding.
+2. **Bundle size.** The full ICD-10-CM code set is several megabytes of JSON. Shipping it inside the app bundle slows cold start and wastes memory on devices that only need a few hundred codes. A curated list stays under 10 KB.
+3. **Offline-first.** Because the list is a plain TypeScript module, it's available instantly with no network call, no lazy load, and no failure mode. Loading the full WHO dataset would push us toward a server-side lookup or a lazy chunk — both add complexity that doesn't pay off for this use case.
+
+If your unit needs broader coverage (e.g. for billing or audit feeds), the right pattern is to keep the curated list for suggestions and call an external ICD-10 service for validation at sync time — don't bloat the client bundle.
 
 ### Adding new CoBaTrICE domains or organ systems
 
