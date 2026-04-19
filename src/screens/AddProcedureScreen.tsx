@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProcedureStore } from '../store/procedureStore';
 import { useCaseStore } from '../store/caseStore';
+import { useAuthStore } from '../store/authStore';
 import { ProcedureLogSchema, ProcedureLogInput } from '../models/ProcedureLog';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
+import { UserPicker } from '../components/UserPicker';
+import { listUsers, ManagedUser } from '../services/AuthService';
 import { COLORS, FONT_SIZE, PROCEDURE_TYPES, RADIUS, SPACING } from '../utils/constants';
 import { formatDisplay } from '../utils/dateUtils';
 import type { ProceduresStackProps } from '../navigation/types';
@@ -26,14 +29,25 @@ export function AddProcedureScreen({ route, navigation }: ProceduresStackProps<'
   const { caseId: preselectedCaseId } = route.params ?? {};
   const { addProcedure } = useProcedureStore();
   const { cases } = useCaseStore();
+  const { userId } = useAuthStore();
 
   const [procedureType, setProcedureType] = useState('');
   const [attempts, setAttempts] = useState('1');
   const [success, setSuccess] = useState(true);
   const [complications, setComplications] = useState('');
   const [caseId, setCaseId] = useState(preselectedCaseId ?? '');
+  const [supervisorUserId, setSupervisorUserId] = useState<string | null>(null);
+  const [externalSupervisorName, setExternalSupervisorName] = useState<string>('');
+  const [observerUserId, setObserverUserId] = useState<string | null>(null);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    listUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
+
+  const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
 
   async function handleSubmit() {
     const input: ProcedureLogInput = {
@@ -42,6 +56,9 @@ export function AddProcedureScreen({ route, navigation }: ProceduresStackProps<'
       success,
       complications: complications || undefined,
       caseId: caseId || undefined,
+      supervisorUserId: externalSupervisorName.trim() ? null : supervisorUserId,
+      externalSupervisorName: externalSupervisorName.trim() || null,
+      observerUserId,
     };
 
     const result = ProcedureLogSchema.safeParse(input);
@@ -169,6 +186,35 @@ export function AddProcedureScreen({ route, navigation }: ProceduresStackProps<'
               </ScrollView>
             </View>
           )}
+
+          <UserPicker
+            label="Supervised by"
+            users={otherUsers}
+            value={supervisorUserId}
+            onChange={(v) => {
+              setSupervisorUserId(v);
+              if (v) setExternalSupervisorName('');
+            }}
+            placeholder="None"
+          />
+          <FormField
+            label="Supervisor not on system"
+            placeholder="Type a name (optional)"
+            value={externalSupervisorName}
+            onChangeText={(v) => {
+              setExternalSupervisorName(v);
+              if (v.trim()) setSupervisorUserId(null);
+            }}
+            hint="Use only when the supervisor has no account. Procedures with an off-system supervisor cannot be approved."
+            autoCapitalize="words"
+          />
+          <UserPicker
+            label="Observed by"
+            users={otherUsers}
+            value={observerUserId}
+            onChange={setObserverUserId}
+            placeholder="None"
+          />
 
           <Button label="Save Procedure" onPress={handleSubmit} loading={loading} style={styles.submit} />
         </ScrollView>

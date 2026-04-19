@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
   ScrollView,
-  Text,
   Alert,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCaseStore } from '../store/caseStore';
@@ -18,13 +15,14 @@ import { MultiSelect } from '../components/MultiSelect';
 import { RadioGroup } from '../components/RadioGroup';
 import { Button } from '../components/Button';
 import { ICD10Autocomplete } from '../components/ICD10Autocomplete';
+import { UserPicker } from '../components/UserPicker';
+import { listUsers, ManagedUser } from '../services/AuthService';
 import {
   COLORS,
   SPACING,
   ORGAN_SYSTEMS,
   COBATRICE_DOMAINS,
   SUPERVISION_LEVELS,
-  FONT_SIZE,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
 
@@ -37,25 +35,24 @@ const EMPTY_FORM: CaseLogInput = {
   organSystems: [],
   cobatriceDomains: [],
   supervisionLevel: 'supervised',
+  supervisorUserId: null,
+  observerUserId: null,
+  externalSupervisorName: null,
   reflection: '',
 };
 
 export function AddCaseScreen() {
   const { addCase } = useCaseStore();
-  const { role } = useAuthStore();
+  const { userId } = useAuthStore();
+  const [users, setUsers] = useState<ManagedUser[]>([]);
 
-  // Supervisors have read-only access — show a locked state
-  if (role === 'supervisor') {
-    return (
-      <View style={styles.supervisorLock}>
-        <Ionicons name="lock-closed" size={48} color={COLORS.border} />
-        <Text style={styles.supervisorLockTitle}>Supervisor View</Text>
-        <Text style={styles.supervisorLockSub}>
-          Supervisors cannot log cases.{'\n'}Switch to a Trainee account to add entries.
-        </Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    listUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
+
+  // Don't offer the current user as their own supervisor/observer.
+  const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
+
   const [form, setForm] = useState<CaseLogInput>(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
@@ -166,6 +163,42 @@ export function AddCaseScreen() {
             error={errors.supervisionLevel}
           />
 
+          {/* Supervised by — visible to chosen user as well as the owner */}
+          <UserPicker
+            label="Supervised by"
+            users={otherUsers}
+            value={form.supervisorUserId ?? null}
+            onChange={(v) => {
+              update('supervisorUserId', v);
+              if (v) update('externalSupervisorName', null);
+            }}
+            placeholder="None"
+          />
+
+          {/* External supervisor name — for supervisors who don't have
+              an account. Mutually exclusive with the picker above. */}
+          <FormField
+            label="Supervisor not on system"
+            placeholder="Type a name (optional)"
+            value={form.externalSupervisorName ?? ''}
+            onChangeText={(v) => {
+              const trimmed = v || null;
+              update('externalSupervisorName', trimmed);
+              if (trimmed) update('supervisorUserId', null);
+            }}
+            hint="Use only when the supervisor has no account. Cases with an off-system supervisor cannot be approved."
+            autoCapitalize="words"
+          />
+
+          {/* Observed by — same visibility rules as supervisor */}
+          <UserPicker
+            label="Observed by"
+            users={otherUsers}
+            value={form.observerUserId ?? null}
+            onChange={(v) => update('observerUserId', v)}
+            placeholder="None"
+          />
+
           {/* Reflection */}
           <FormField
             label="Reflection"
@@ -192,24 +225,4 @@ const styles = StyleSheet.create({
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   textarea: { minHeight: 100 },
   submit: { marginTop: SPACING.sm },
-  supervisorLock: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.background,
-    padding: SPACING.xl,
-  },
-  supervisorLockTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    marginTop: SPACING.md,
-  },
-  supervisorLockSub: {
-    fontSize: FONT_SIZE.sm,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-    lineHeight: 20,
-  },
 });

@@ -189,6 +189,44 @@ export function findByCode(code: string): ICD10Entry | undefined {
 // Convert a stored ICD-10 code into one (or two) CodedValue entries suitable
 // for the semantic export. If a SNOMED mapping is present, emits the ICD-10
 // coding as primary and the SNOMED equivalent under `mappings[]`.
+// MONDO (Monarch Disease Ontology) mappings for ICU-relevant ICD-10 codes.
+// MONDO integrates ICD-10, SNOMED, OMIM, Orphanet, DOID and NCIT into one
+// graph, which is what the Monarch Initiative KG is built on. A MONDO term
+// in the exported `mappings[]` makes a record joinable with gene–disease,
+// phenotype–disease, and drug–disease data already curated by Monarch.
+// ICD-10 prefix is used so related subcodes inherit the mapping.
+const MONDO_BY_ICD10_PREFIX: Array<[string, { code: string; display: string }]> = [
+  ['A40', { code: 'MONDO:0005737', display: 'sepsis' }],
+  ['A41', { code: 'MONDO:0005737', display: 'sepsis' }],
+  ['R65.2', { code: 'MONDO:0005737', display: 'sepsis' }],
+  ['J12', { code: 'MONDO:0005249', display: 'pneumonia' }],
+  ['J15', { code: 'MONDO:0005249', display: 'pneumonia' }],
+  ['J18', { code: 'MONDO:0005249', display: 'pneumonia' }],
+  ['J69', { code: 'MONDO:0005249', display: 'pneumonia' }],
+  ['J80', { code: 'MONDO:0006502', display: 'acute respiratory distress syndrome' }],
+  ['J96', { code: 'MONDO:0001134', display: 'respiratory failure' }],
+  ['J44', { code: 'MONDO:0005002', display: 'chronic obstructive pulmonary disease' }],
+  ['J45', { code: 'MONDO:0004979', display: 'asthma' }],
+  ['I21', { code: 'MONDO:0005068', display: 'myocardial infarction' }],
+  ['I46', { code: 'MONDO:0016447', display: 'cardiac arrest' }],
+  ['I50', { code: 'MONDO:0005252', display: 'heart failure' }],
+  ['I63', { code: 'MONDO:0002236', display: 'ischemic stroke' }],
+  ['I61', { code: 'MONDO:0016074', display: 'intracerebral hemorrhage' }],
+  ['N17', { code: 'MONDO:0002492', display: 'acute kidney injury' }],
+  ['E10', { code: 'MONDO:0005147', display: 'type 1 diabetes mellitus' }],
+  ['E11', { code: 'MONDO:0005148', display: 'type 2 diabetes mellitus' }],
+  ['E87.2', { code: 'MONDO:0002120', display: 'metabolic acidosis' }],
+  ['K72', { code: 'MONDO:0006045', display: 'hepatic failure' }],
+  ['K70', { code: 'MONDO:0005359', display: 'alcoholic liver disease' }],
+  ['G40', { code: 'MONDO:0005027', display: 'epilepsy' }],
+  ['G41', { code: 'MONDO:0020072', display: 'status epilepticus' }],
+];
+
+function mondoForIcd10(code: string): { code: string; display: string } | null {
+  const hit = MONDO_BY_ICD10_PREFIX.find(([prefix]) => code.startsWith(prefix));
+  return hit ? hit[1] : null;
+}
+
 export function icd10ToCoded(code: string): CodedValue | null {
   const entry = findByCode(code);
   if (!entry) return null;
@@ -197,14 +235,22 @@ export function icd10ToCoded(code: string): CodedValue | null {
     code: entry.code,
     display: entry.label,
   };
+  const mappings: NonNullable<CodedValue['mappings']> = [];
   if (entry.snomed) {
-    primary.mappings = [
-      {
-        system: CODE_SYSTEMS.snomed,
-        code: entry.snomed.code,
-        display: entry.snomed.display,
-      },
-    ];
+    mappings.push({
+      system: CODE_SYSTEMS.snomed,
+      code: entry.snomed.code,
+      display: entry.snomed.display,
+    });
   }
+  const mondo = mondoForIcd10(entry.code);
+  if (mondo) {
+    mappings.push({
+      system: CODE_SYSTEMS.mondo,
+      code: mondo.code,
+      display: mondo.display,
+    });
+  }
+  if (mappings.length > 0) primary.mappings = mappings;
   return primary;
 }

@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 // ─── Root (auth gate) ─────────────────────────────────────────────────────────
 export type RootStackParamList = {
   Login: undefined;
+  Setup: undefined;
   Consent: undefined;
   Main: undefined;
 };
@@ -39,6 +40,7 @@ export type SettingsStackParamList = {
   SettingsHome: undefined;
   Consent: undefined;
   Export: undefined;
+  AdminPanel: undefined;
 };
 
 // ─── Convenience prop types ───────────────────────────────────────────────────

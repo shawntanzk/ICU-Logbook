@@ -10,6 +10,7 @@ import { supervisionToCoded } from '../data/supervision';
 import { captureProvenance } from './ProvenanceService';
 import { getConsent } from './ConsentService';
 import { scoreCase } from './QualityService';
+import { caseScopedWhere, currentUserId } from './AuthScope';
 import { CURRENT_SCHEMA_VERSION, DEFAULT_LICENSE } from '../models/Provenance';
 import type { CodedValue } from '../models/CodedValue';
 
@@ -38,6 +39,12 @@ interface CaseRow {
   quality: string | null;
   consent_status: string;
   license: string;
+  owner_id: string | null;
+  supervisor_user_id: string | null;
+  observer_user_id: string | null;
+  external_supervisor_name: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
 }
 
 function parseJSON<T>(s: string | null | undefined, fallback: T): T {
@@ -52,6 +59,12 @@ function parseJSON<T>(s: string | null | undefined, fallback: T): T {
 function rowToModel(row: CaseRow): CaseLog {
   return {
     id: row.id,
+    ownerId: row.owner_id,
+    supervisorUserId: row.supervisor_user_id,
+    observerUserId: row.observer_user_id,
+    externalSupervisorName: row.external_supervisor_name,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
     date: row.date,
     diagnosis: row.diagnosis,
     icd10Code: row.icd10_code,
@@ -105,17 +118,20 @@ function codify(input: CaseLogInput): Pick<
 class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
   async findAll(): Promise<CaseLog[]> {
     const db = await getDatabase();
+    const scope = caseScopedWhere();
     const rows = await db.getAllAsync<CaseRow>(
-      'SELECT * FROM case_logs ORDER BY date DESC, created_at DESC'
+      `SELECT * FROM case_logs WHERE ${scope.clause} ORDER BY date DESC, created_at DESC`,
+      scope.params
     );
     return rows.map(rowToModel);
   }
 
   async findById(id: string): Promise<CaseLog | null> {
     const db = await getDatabase();
+    const scope = caseScopedWhere();
     const row = await db.getFirstAsync<CaseRow>(
-      'SELECT * FROM case_logs WHERE id = ?',
-      [id]
+      `SELECT * FROM case_logs WHERE id = ? AND ${scope.clause}`,
+      [id, ...scope.params]
     );
     return row ? rowToModel(row) : null;
   }
@@ -133,9 +149,12 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     const draft: CaseLog = {
       ...input,
       id,
+      ownerId: currentUserId(),
       createdAt: now,
       updatedAt: now,
       synced: false,
+      approvedBy: null,
+      approvedAt: null,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       ...coded,
       provenance,
@@ -145,14 +164,18 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     };
     const quality = scoreCase(draft);
 
+    const externalName = input.externalSupervisorName?.trim() || null;
+    const supervisorId = externalName ? null : (input.supervisorUserId ?? null);
+
     await db.runAsync(
       `INSERT INTO case_logs
         (id, date, diagnosis, icd10_code, organ_systems, cobatrice_domains,
          supervision_level, reflection, created_at, updated_at, synced,
          schema_version, diagnosis_coded, organ_systems_coded,
          cobatrice_domains_coded, supervision_level_coded,
-         provenance, quality, consent_status, license)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         provenance, quality, consent_status, license, owner_id,
+         supervisor_user_id, observer_user_id, external_supervisor_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         input.date,
@@ -173,6 +196,10 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
         JSON.stringify(quality),
         consent,
         DEFAULT_LICENSE,
+        currentUserId(),
+        supervisorId,
+        input.observerUserId ?? null,
+        externalName,
       ]
     );
     return (await this.findById(id))!;
@@ -190,39 +217,64 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
       organSystems: input.organSystems ?? existing.organSystems,
       cobatriceDomains: input.cobatriceDomains ?? existing.cobatriceDomains,
       supervisionLevel: input.supervisionLevel ?? existing.supervisionLevel,
+      supervisorUserId: input.supervisorUserId ?? existing.supervisorUserId,
+      observerUserId: input.observerUserId ?? existing.observerUserId,
+      externalSupervisorName:
+        input.externalSupervisorName ?? existing.externalSupervisorName,
       reflection: input.reflection ?? existing.reflection,
     };
+    const mergedExternalName = merged.externalSupervisorName?.trim() || null;
+    const mergedSupervisorId = mergedExternalName
+      ? null
+      : (merged.supervisorUserId ?? null);
+    // Changing the supervisor invalidates any prior approval.
+    const supervisorChanged =
+      (existing.supervisorUserId ?? null) !== mergedSupervisorId;
     const coded = codify(merged);
     const now = nowISO();
     const draft: CaseLog = { ...existing, ...merged, ...coded, updatedAt: now };
     const quality = scoreCase(draft);
 
-    await db.runAsync(
-      `UPDATE case_logs SET
-        date = ?, diagnosis = ?, icd10_code = ?, organ_systems = ?,
-        cobatrice_domains = ?, supervision_level = ?, reflection = ?,
-        updated_at = ?, synced = 0,
-        diagnosis_coded = ?, organ_systems_coded = ?,
-        cobatrice_domains_coded = ?, supervision_level_coded = ?,
-        quality = ?
-       WHERE id = ?`,
-      [
-        merged.date,
-        merged.diagnosis,
-        merged.icd10Code ?? '',
-        JSON.stringify(merged.organSystems),
-        JSON.stringify(merged.cobatriceDomains),
-        merged.supervisionLevel,
-        merged.reflection ?? '',
-        now,
-        coded.diagnosisCoded ? JSON.stringify(coded.diagnosisCoded) : null,
-        JSON.stringify(coded.organSystemsCoded),
-        JSON.stringify(coded.cobatriceDomainsCoded),
-        JSON.stringify(coded.supervisionLevelCoded),
-        JSON.stringify(quality),
-        id,
-      ]
-    );
+    const updateSql = supervisorChanged
+      ? `UPDATE case_logs SET
+          date = ?, diagnosis = ?, icd10_code = ?, organ_systems = ?,
+          cobatrice_domains = ?, supervision_level = ?, reflection = ?,
+          updated_at = ?, synced = 0,
+          diagnosis_coded = ?, organ_systems_coded = ?,
+          cobatrice_domains_coded = ?, supervision_level_coded = ?,
+          quality = ?, supervisor_user_id = ?, observer_user_id = ?,
+          external_supervisor_name = ?,
+          approved_by = NULL, approved_at = NULL
+         WHERE id = ?`
+      : `UPDATE case_logs SET
+          date = ?, diagnosis = ?, icd10_code = ?, organ_systems = ?,
+          cobatrice_domains = ?, supervision_level = ?, reflection = ?,
+          updated_at = ?, synced = 0,
+          diagnosis_coded = ?, organ_systems_coded = ?,
+          cobatrice_domains_coded = ?, supervision_level_coded = ?,
+          quality = ?, supervisor_user_id = ?, observer_user_id = ?,
+          external_supervisor_name = ?
+         WHERE id = ?`;
+
+    await db.runAsync(updateSql, [
+      merged.date,
+      merged.diagnosis,
+      merged.icd10Code ?? '',
+      JSON.stringify(merged.organSystems),
+      JSON.stringify(merged.cobatriceDomains),
+      merged.supervisionLevel,
+      merged.reflection ?? '',
+      now,
+      coded.diagnosisCoded ? JSON.stringify(coded.diagnosisCoded) : null,
+      JSON.stringify(coded.organSystemsCoded),
+      JSON.stringify(coded.cobatriceDomainsCoded),
+      JSON.stringify(coded.supervisionLevelCoded),
+      JSON.stringify(quality),
+      mergedSupervisorId,
+      merged.observerUserId ?? null,
+      mergedExternalName,
+      id,
+    ]);
     return (await this.findById(id))!;
   }
 
@@ -231,14 +283,55 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     await db.runAsync('DELETE FROM case_logs WHERE id = ?', [id]);
   }
 
+  // Approve a case — only the tagged supervisor may approve. Returns
+  // the updated row so callers can refresh local state.
+  async approve(id: string): Promise<CaseLog> {
+    const db = await getDatabase();
+    const userId = currentUserId();
+    if (!userId) throw new Error('Not signed in.');
+    const row = await db.getFirstAsync<{ supervisor_user_id: string | null }>(
+      'SELECT supervisor_user_id FROM case_logs WHERE id = ?',
+      [id]
+    );
+    if (!row) throw new Error(`Case ${id} not found`);
+    if (row.supervisor_user_id !== userId) {
+      throw new Error('Only the tagged supervisor can approve this case.');
+    }
+    await db.runAsync(
+      'UPDATE case_logs SET approved_by = ?, approved_at = ?, updated_at = ?, synced = 0 WHERE id = ?',
+      [userId, nowISO(), nowISO(), id]
+    );
+    return (await this.findById(id))!;
+  }
+
+  async revokeApproval(id: string): Promise<CaseLog> {
+    const db = await getDatabase();
+    const userId = currentUserId();
+    if (!userId) throw new Error('Not signed in.');
+    const row = await db.getFirstAsync<{ supervisor_user_id: string | null }>(
+      'SELECT supervisor_user_id FROM case_logs WHERE id = ?',
+      [id]
+    );
+    if (!row) throw new Error(`Case ${id} not found`);
+    if (row.supervisor_user_id !== userId) {
+      throw new Error('Only the tagged supervisor can revoke approval.');
+    }
+    await db.runAsync(
+      'UPDATE case_logs SET approved_by = NULL, approved_at = NULL, updated_at = ?, synced = 0 WHERE id = ?',
+      [nowISO(), id]
+    );
+    return (await this.findById(id))!;
+  }
+
   // ─── Derived queries ────────────────────────────────────────────────────────
 
   async countThisMonth(): Promise<number> {
     const db = await getDatabase();
+    const scope = caseScopedWhere();
     const start = startOfMonthISO();
     const row = await db.getFirstAsync<{ count: number }>(
-      'SELECT COUNT(*) as count FROM case_logs WHERE created_at >= ?',
-      [start]
+      `SELECT COUNT(*) as count FROM case_logs WHERE created_at >= ? AND ${scope.clause}`,
+      [start, ...scope.params]
     );
     return row?.count ?? 0;
   }
@@ -256,9 +349,10 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
 
   async findByDateRange(from: string, to: string): Promise<CaseLog[]> {
     const db = await getDatabase();
+    const scope = caseScopedWhere();
     const rows = await db.getAllAsync<CaseRow>(
-      'SELECT * FROM case_logs WHERE date >= ? AND date <= ? ORDER BY date DESC',
-      [from, to]
+      `SELECT * FROM case_logs WHERE date >= ? AND date <= ? AND ${scope.clause} ORDER BY date DESC`,
+      [from, to, ...scope.params]
     );
     return rows.map(rowToModel);
   }

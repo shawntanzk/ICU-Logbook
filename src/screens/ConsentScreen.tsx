@@ -40,7 +40,7 @@ const OPTIONS: Option[] = [
 
 export function ConsentScreen() {
   const { status, setStatus } = useConsentStore();
-  const [pending, setPending] = useState<ConsentStatus>(status === 'none' ? 'anonymous' : status);
+  const [pending, setPending] = useState<ConsentStatus>(status);
   const [saving, setSaving] = useState(false);
 
   async function save() {

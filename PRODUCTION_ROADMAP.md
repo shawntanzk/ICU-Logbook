@@ -48,30 +48,35 @@ This document describes everything required to take ICU Logbook from the current
 
 | Feature | Status | Notes |
 |---|---|---|
-| Case logging form | ✅ Working | Full validation, saves locally |
-| Procedure logging form | ✅ Working | Links to cases, saves locally |
-| Dashboard with stats | ✅ Working | Real data from local DB |
-| Case list with search | ✅ Working | Filterable, sortable |
+| Case logging form | ✅ Working | Full validation, saves locally; supervisor/observer pickers |
+| Procedure logging form | ✅ Working | Links to cases, saves locally; supervisor/observer pickers |
+| Dashboard with stats | ✅ Working | Real data, admin vs user styling |
+| Case list with search | ✅ Working | Owner + relation badges, filterable |
 | Competency heatmap | ✅ Working | All 12 CoBaTrICE domains |
 | AI summary (mock) | ✅ Working | Hardcoded template, ready for API |
 | Offline storage | ✅ Working | SQLite via expo-sqlite |
-| Role selection | ✅ Working | Trainee / Supervisor |
+| **Authentication** | ✅ Local-only | Email + password against a second SQLite file (`icu_logbook_server.db`). Salted + hashed passwords, 30-day session tokens in a `sessions` table. Restore-on-launch. |
+| **First-run admin setup** | ✅ Working | `FirstRunSetupScreen` forces creation of the initial admin when the server DB has zero users. Refuses to run once any user exists. |
+| **User management** | ✅ Working | Admin Panel: create / disable / role-toggle / reset-password / delete users. |
+| **Role model** | ✅ Working | Two roles only: `admin` and `user`. Supervision/observation recorded per record. |
+| **Owner-scoped visibility** | ✅ Working | Every record has `owner_id`, `supervisor_user_id`, `observer_user_id`. SQL `WHERE` fragments in `AuthScope.ts` enforce: admin sees all; user sees own + supervised + observed. |
+| Consent + FAIR exports | ✅ Working | Four-way consent; FHIR / openEHR / JSON-LD exports |
 | Sync button | ✅ Working | Simulates upload, marks records synced |
-| Supervisor view | ✅ Working | Read-only, locked Add Case screen |
 
 ### What is mocked or missing
 
 | Feature | Current State | What is needed |
 |---|---|---|
-| Authentication | Demo only (name + role, no password) | Real auth with passwords, session tokens |
-| Cloud backend | Mock Supabase client | Real Supabase project with tables |
-| Cloud sync | Simulated (marks records synced locally) | Real API calls to Supabase |
-| Data export | Button shows placeholder alert | PDF/CSV generation |
+| Backend location | Auth and user tables live in a second **local** SQLite file; not a remote server | Migrate `AuthService.ts` to Supabase Auth + Postgres; replicate visibility as RLS policies |
+| Cloud sync | Simulated (marks records synced locally) | Real API calls to Supabase, preserving `owner_id` / `supervisor_user_id` / `observer_user_id` |
+| Password policy | Minimum 6 chars, no complexity rules | Stronger policy, breach-password check, optional MFA |
+| Session security | Token cached in `app_settings`; no inactivity timeout | Expo SecureStore, 15-min inactivity auto-logout, biometric re-auth |
+| Data export | FHIR / openEHR / JSON-LD exist; no PDF/CSV | PDF/CSV generation for ARCP panels |
 | Edit records | Not implemented | Edit form for existing cases |
 | Date input | Text field (YYYY-MM-DD) | Native date picker |
 | Notifications | Not implemented | Reminder to log daily/weekly |
-| Supervisor sign-off | Not implemented | Supervisor approval workflow |
-| Encryption | None | At-rest encryption on device DB |
+| Supervisor sign-off | Pickers capture who supervised/observed, but no approval state | Supervisor approval workflow with status (pending / approved / rejected) |
+| Encryption | None | At-rest encryption on both SQLite files |
 | Testing | None | Unit and integration tests |
 | App store | Not submitted | Icons, store listings, privacy policy |
 
@@ -81,18 +86,23 @@ This document describes everything required to take ICU Logbook from the current
 
 This phase must be completed before any real users can use the app.
 
+**Partial credit:** email/password auth, session management, user CRUD, and a first-run admin setup flow already work — against a **local** SQLite file. The Phase 1 work is therefore narrower than it originally was: migrate `AuthService.ts` from the local mock to real Supabase Auth, and carry `owner_id` / `supervisor_user_id` / `observer_user_id` through the sync payload.
+
 ---
 
-### 2.1 Real Authentication
+### 2.1 Migrate Auth from Local Mock to Supabase
 
-**Why it matters:** Without real authentication, anyone who picks up a phone can access any user's clinical data. In a healthcare context this is both a privacy risk and a regulatory violation.
+**Current state:** Email + password authentication is already working against a **local** SQLite file (`icu_logbook_server.db`). Passwords are salted and hashed; sessions are bound to a `sessions` table; restore-on-launch works. What's missing is the remote part — every device has its own private auth store, so accounts don't roam.
+
+**Why it matters:** Users need to sign in on any device with the same credentials, admins need central control of the account list, and session revocation must be authoritative across devices. A local-only auth store can't deliver any of that.
 
 **What to implement:**
 
-1. **Supabase Auth** — email/password login with secure session tokens
-2. **Persistent sessions** — user stays logged in between app restarts
-3. **Password reset** — "Forgot password" email flow
+1. **Supabase Auth** — email/password login with secure session tokens (replacing the local `sessions` table)
+2. **Persistent sessions** — already works locally; switch the storage backend to AsyncStorage + Supabase session refresh
+3. **Password reset** — "Forgot password" email flow (not possible in the local mock)
 4. **Logout on session expiry** — auto-logout after inactivity
+5. **Decide on first-run setup** — the `FirstRunSetupScreen` assumes zero-users triggers admin creation. For hosted deployments, either remove the screen behind a build flag, or keep it for self-hosted installs. For hosted, seed the first admin via the Supabase dashboard instead.
 
 **How to do it:**
 
@@ -131,18 +141,11 @@ export const AuthService = {
 };
 ```
 
-Update `src/screens/LoginScreen.tsx`:
-- Replace name input with email + password fields
-- Call `AuthService.signIn()` on submit
-- Show error messages from Supabase (wrong password, unverified email, etc.)
+The existing `LoginScreen.tsx` already collects email + password and calls through `useAuthStore().signIn` → `AuthService.signIn`. Migration is a one-file change: replace the bodies of the six exports in `AuthService.ts` (`signIn`, `restoreSession`, `signOut`, `listUsers`, `createUser`, `updateUserRole`, `setUserDisabled`, `resetUserPassword`, `deleteUser`, `hasAnyUser`, `createFirstAdmin`, `getUserDirectory`) with Supabase calls. No screen or store code needs to change.
 
-Update `src/store/authStore.ts`:
-- Populate `userName`, `role` from Supabase user metadata (stored at sign-up)
-- Subscribe to `supabase.auth.onAuthStateChange` to handle session expiry
+**Role model:** the app uses two roles only — `admin` and `user`. Supervision/observation is per record (via `supervisor_user_id` / `observer_user_id`), not per account. Replicate this in Supabase: a `profiles` table with `role` ∈ {`admin`, `user`}, plus the two ID columns on `case_logs` and `procedure_logs`.
 
-Add a **Sign Up screen** (`src/screens/SignUpScreen.tsx`) where new trainees register with their hospital and register their role (trainee vs supervisor — should be admin-approved, not self-selected in production).
-
-**Security note:** In production, role assignment should be server-side. A user should not be able to grant themselves "supervisor" status by modifying the app. Roles should be stored in a Supabase `profiles` table and enforced via Row-Level Security policies.
+**Security note:** In production, role assignment must be server-side. A user should not be able to grant themselves admin status by modifying the app. Roles should be stored in the Supabase `profiles` table and enforced via Row-Level Security policies that mirror `src/services/AuthScope.ts`.
 
 ---
 
@@ -161,50 +164,71 @@ Add a **Sign Up screen** (`src/screens/SignUpScreen.tsx`) where new trainees reg
 CREATE TABLE profiles (
   id          UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   full_name   TEXT NOT NULL,
-  role        TEXT NOT NULL CHECK (role IN ('trainee', 'supervisor')),
+  role        TEXT NOT NULL CHECK (role IN ('admin', 'user')),
   hospital    TEXT,
+  disabled    BOOLEAN NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Case logs
 CREATE TABLE case_logs (
-  id                  UUID PRIMARY KEY,
-  user_id             UUID NOT NULL REFERENCES profiles(id),
-  date                DATE NOT NULL,
-  diagnosis           TEXT NOT NULL,
-  icd10_code          TEXT,
-  organ_systems       TEXT[] NOT NULL DEFAULT '{}',
-  cobatrice_domains   TEXT[] NOT NULL DEFAULT '{}',
-  supervision_level   TEXT NOT NULL,
-  reflection          TEXT,
-  created_at          TIMESTAMPTZ NOT NULL,
-  updated_at          TIMESTAMPTZ NOT NULL
+  id                    UUID PRIMARY KEY,
+  owner_id              UUID NOT NULL REFERENCES profiles(id),
+  supervisor_user_id    UUID REFERENCES profiles(id),
+  observer_user_id      UUID REFERENCES profiles(id),
+  date                  DATE NOT NULL,
+  diagnosis             TEXT NOT NULL,
+  icd10_code            TEXT,
+  organ_systems         TEXT[] NOT NULL DEFAULT '{}',
+  cobatrice_domains     TEXT[] NOT NULL DEFAULT '{}',
+  supervision_level     TEXT NOT NULL,
+  reflection            TEXT,
+  created_at            TIMESTAMPTZ NOT NULL,
+  updated_at            TIMESTAMPTZ NOT NULL
 );
 
--- Procedure logs
+-- Procedure logs (same visibility columns as cases)
 CREATE TABLE procedure_logs (
-  id              UUID PRIMARY KEY,
-  user_id         UUID NOT NULL REFERENCES profiles(id),
-  case_id         UUID REFERENCES case_logs(id) ON DELETE SET NULL,
-  procedure_type  TEXT NOT NULL,
-  attempts        INTEGER NOT NULL,
-  success         BOOLEAN NOT NULL,
-  complications   TEXT,
-  created_at      TIMESTAMPTZ NOT NULL,
-  updated_at      TIMESTAMPTZ NOT NULL
+  id                    UUID PRIMARY KEY,
+  owner_id              UUID NOT NULL REFERENCES profiles(id),
+  supervisor_user_id    UUID REFERENCES profiles(id),
+  observer_user_id      UUID REFERENCES profiles(id),
+  case_id               UUID REFERENCES case_logs(id) ON DELETE SET NULL,
+  procedure_type        TEXT NOT NULL,
+  attempts              INTEGER NOT NULL,
+  success               BOOLEAN NOT NULL,
+  complications         TEXT,
+  created_at            TIMESTAMPTZ NOT NULL,
+  updated_at            TIMESTAMPTZ NOT NULL
 );
 
--- Row-Level Security: users can only read their own data
+-- Helper function: is the current user an admin?
+CREATE OR REPLACE FUNCTION is_admin() RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+  );
+$$ LANGUAGE SQL STABLE;
+
+-- Row-Level Security: mirror AuthScope.ts
 ALTER TABLE case_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users see own cases" ON case_logs
-  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY cases_visible ON case_logs FOR SELECT USING (
+  is_admin()
+  OR owner_id = auth.uid()
+  OR supervisor_user_id = auth.uid()
+  OR observer_user_id = auth.uid()
+);
+CREATE POLICY cases_insert ON case_logs FOR INSERT WITH CHECK (owner_id = auth.uid() OR is_admin());
+CREATE POLICY cases_update ON case_logs FOR UPDATE USING (owner_id = auth.uid() OR is_admin());
+CREATE POLICY cases_delete ON case_logs FOR DELETE USING (owner_id = auth.uid() OR is_admin());
 
 ALTER TABLE procedure_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users see own procedures" ON procedure_logs
-  FOR ALL USING (auth.uid() = user_id);
-
--- Supervisors can read their trainees' data
--- (implement with a supervisor_trainee join table)
+CREATE POLICY procs_visible ON procedure_logs FOR SELECT USING (
+  is_admin()
+  OR owner_id = auth.uid()
+  OR supervisor_user_id = auth.uid()
+  OR observer_user_id = auth.uid()
+);
+-- repeat insert/update/delete as above
 ```
 
 4. In your Supabase project, go to **Settings → API** and copy your **Project URL** and **anon/public key**
@@ -251,7 +275,9 @@ async syncPending(): Promise<SyncResult> {
   if (unsyncedCases.length > 0) {
     const rows = unsyncedCases.map(row => ({
       ...rowToSupabaseFormat(row),
-      user_id: userId,
+      owner_id: row.owner_id ?? userId,
+      supervisor_user_id: row.supervisor_user_id ?? null,
+      observer_user_id: row.observer_user_id ?? null,
     }));
 
     const { error } = await supabase.from('case_logs').upsert(rows);
@@ -357,24 +383,26 @@ Wire this to the **Export Data** button in `SettingsScreen.tsx`.
 
 **Why it matters:** In formal training programmes, supervisors must countersign logbook entries. This is the core value of a digital logbook over paper.
 
+**Current state:** Every case and procedure already carries a `supervisor_user_id` and `observer_user_id` (see migrations v4 / v5). The supervisor can *see* the record — there's just no approval state on top of it yet.
+
 **What to build:**
 
 1. A `supervisor_reviews` table in Supabase:
    ```sql
    CREATE TABLE supervisor_reviews (
-     id          UUID PRIMARY KEY,
-     case_id     UUID NOT NULL REFERENCES case_logs(id),
+     id            UUID PRIMARY KEY,
+     case_id       UUID NOT NULL REFERENCES case_logs(id),
      supervisor_id UUID NOT NULL REFERENCES profiles(id),
-     status      TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
-     comment     TEXT,
-     reviewed_at TIMESTAMPTZ
+     status        TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+     comment       TEXT,
+     reviewed_at   TIMESTAMPTZ
    );
    ```
-2. A **Request Review** button on `CaseDetailScreen.tsx` (trainees)
-3. A **Supervisor inbox** screen listing pending cases from their trainees
-4. **Approve / Reject** actions with optional comment
+2. A **Request Review** button on `CaseDetailScreen.tsx` (owner) that creates a `supervisor_reviews` row with `supervisor_id = case.supervisor_user_id` and `status = 'pending'`
+3. A **Reviews inbox** screen listing the signed-in user's pending rows (`WHERE supervisor_id = auth.uid() AND status = 'pending'`)
+4. **Approve / Reject** actions with optional comment, surfacing the result back in the owner's case detail view
 
-**Data access:** Supervisors need a `supervisor_trainee` join table in Supabase so Row-Level Security correctly limits what they can see.
+No join table is needed — the per-record `supervisor_user_id` already identifies who should review. An RLS policy on `supervisor_reviews` using `supervisor_id = auth.uid() OR EXISTS (… case.owner_id = auth.uid() …)` covers both sides.
 
 ---
 
@@ -416,11 +444,11 @@ This phase is **mandatory before any real patient data is stored**, even de-iden
 
 ### 4.1 Data Encryption at Rest
 
-**Why it matters:** If a phone is lost or stolen, patient data (even de-identified) in an unencrypted database can be read by anyone with basic tools.
+**Why it matters:** If a phone is lost or stolen, patient data (even de-identified) in an unencrypted database can be read by anyone with basic tools. This applies to **both** SQLite files — the local cache *and* the mock-server DB that currently holds password hashes.
 
 **What to implement:**
 
-Replace `expo-sqlite` with the encrypted variant:
+Replace `expo-sqlite` with the encrypted variant (applies to both `icu_logbook.db` and `icu_logbook_server.db`, though the latter goes away once auth moves to Supabase):
 
 1. Update `app.json`:
    ```json
@@ -842,13 +870,13 @@ jobs:
 
 | Phase | Content | Duration |
 |---|---|---|
-| Phase 1 | Auth, Supabase, real sync | 3 weeks |
+| Phase 1 | Migrate auth to Supabase, real sync (auth itself already works locally) | 2 weeks |
 | Phase 2 | Edit records, export, supervisor sign-off | 3 weeks |
 | Phase 3 | Encryption, GDPR, audit logging | 3 weeks |
 | Phase 4 | Testing, monitoring, performance | 3 weeks |
 | Phase 5 | App store submission | 1–2 weeks |
 | Phase 6 | AI features | 2–4 weeks |
-| **Total** | | **~16–18 weeks** |
+| **Total** | | **~15–17 weeks** |
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import {
   RADIUS,
 } from '../utils/constants';
 import { formatDisplay, formatDateTime } from '../utils/dateUtils';
+import { getUserDirectory } from '../services/AuthService';
 import type { CasesStackProps } from '../navigation/types';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -72,16 +73,20 @@ function ProcedureItem({ proc }: { proc: ProcedureLog }) {
 
 export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDetail'>) {
   const { caseId } = route.params;
-  const { cases, deleteCase } = useCaseStore();
+  const { cases, deleteCase, approveCase, revokeCaseApproval } = useCaseStore();
   const { procedures, fetchProcedures } = useProcedureStore();
-  const { role } = useAuthStore();
-  const isSupervisor = role === 'supervisor';
+  const { userId } = useAuthStore();
+  const [directory, setDirectory] = useState<Record<string, string>>({});
 
   const caseLog = cases.find((c) => c.id === caseId);
   const linkedProcedures = procedures.filter((p) => p.caseId === caseId);
+  const isOwner = !!caseLog && caseLog.ownerId === userId;
+  const isSupervisor = !!caseLog && caseLog.supervisorUserId === userId;
+  const isApproved = !!caseLog?.approvedBy;
 
   useEffect(() => {
     fetchProcedures();
+    getUserDirectory().then(setDirectory).catch(() => setDirectory({}));
   }, []);
 
   // Mock AI summary — replace with Claude API call when ready
@@ -120,6 +125,31 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
   const supervisionLabel =
     SUPERVISION_LEVELS.find((s) => s.id === caseLog.supervisionLevel)?.label ?? caseLog.supervisionLevel;
 
+  async function handleApprove() {
+    try {
+      await approveCase(caseId);
+    } catch (e) {
+      Alert.alert('Could not approve', e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function handleRevoke() {
+    Alert.alert('Revoke approval', 'The owner will be notified in-app that approval was withdrawn. Continue?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Revoke',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await revokeCaseApproval(caseId);
+          } catch (e) {
+            Alert.alert('Could not revoke', e instanceof Error ? e.message : String(e));
+          }
+        },
+      },
+    ]);
+  }
+
   function handleDelete() {
     Alert.alert('Delete Case', 'This action cannot be undone. Continue?', [
       { text: 'Cancel', style: 'cancel' },
@@ -137,14 +167,6 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Supervisor read-only banner */}
-        {isSupervisor && (
-          <View style={styles.supervisorBanner}>
-            <Ionicons name="ribbon" size={14} color={COLORS.accent} />
-            <Text style={styles.supervisorBannerText}>Supervisor View · Read Only</Text>
-          </View>
-        )}
-
         {/* AI Summary button */}
         <TouchableOpacity style={styles.aiBtn} onPress={handleAISummary} activeOpacity={0.85}>
           <Ionicons name="sparkles" size={16} color={COLORS.white} />
@@ -158,6 +180,37 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
           <DetailRow label="Diagnosis" value={caseLog.diagnosis} />
           {caseLog.icd10Code ? <DetailRow label="ICD-10" value={caseLog.icd10Code} /> : null}
           <DetailRow label="Supervision" value={supervisionLabel} />
+          <DetailRow
+            label="Owner"
+            value={
+              caseLog.ownerId
+                ? (isOwner ? 'You' : (directory[caseLog.ownerId] ?? 'Unknown user'))
+                : 'Unowned (legacy)'
+            }
+          />
+          <DetailRow
+            label="Supervised by"
+            value={
+              caseLog.supervisorUserId
+                ? (directory[caseLog.supervisorUserId] ?? 'Unknown')
+                : caseLog.externalSupervisorName
+                  ? `${caseLog.externalSupervisorName} (off-system)`
+                  : '—'
+            }
+          />
+          <DetailRow
+            label="Observed by"
+            value={caseLog.observerUserId ? (directory[caseLog.observerUserId] ?? 'Unknown') : '—'}
+          />
+          {caseLog.approvedBy && (
+            <DetailRow
+              label="Approved"
+              value={
+                `${caseLog.approvedBy === userId ? 'You' : (directory[caseLog.approvedBy] ?? 'Supervisor')}` +
+                (caseLog.approvedAt ? ` · ${formatDateTime(caseLog.approvedAt)}` : '')
+              }
+            />
+          )}
         </Section>
 
         {/* Organ systems */}
@@ -192,8 +245,22 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
           {caseLog.synced ? ' · Synced' : ' · Not synced'}
         </Text>
 
-        {/* Delete — hidden from supervisors */}
-        {!isSupervisor && (
+        {/* Approve / revoke — tagged supervisor only */}
+        {isSupervisor && !isApproved && (
+          <TouchableOpacity style={styles.approveBtn} onPress={handleApprove} activeOpacity={0.85}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.white} />
+            <Text style={styles.approveBtnText}>Approve Case</Text>
+          </TouchableOpacity>
+        )}
+        {isSupervisor && isApproved && (
+          <TouchableOpacity style={styles.revokeBtn} onPress={handleRevoke} activeOpacity={0.85}>
+            <Ionicons name="close-circle-outline" size={16} color={COLORS.warning} />
+            <Text style={styles.revokeBtnText}>Revoke Approval</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Delete — only the owner can remove a case */}
+        {isOwner && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
             <Ionicons name="trash-outline" size={16} color={COLORS.error} />
             <Text style={styles.deleteBtnText}>Delete Case</Text>
@@ -208,17 +275,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   notFound: { textAlign: 'center', marginTop: SPACING.xxl, color: COLORS.textMuted },
-  supervisorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.accent + '18',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.md,
-    marginBottom: SPACING.md,
-  },
-  supervisorBannerText: { fontSize: FONT_SIZE.sm, color: COLORS.accent, fontWeight: '600' },
   aiBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -274,4 +330,27 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   deleteBtnText: { fontSize: FONT_SIZE.sm, color: COLORS.error, fontWeight: '600' },
+  approveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.success,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  approveBtnText: { fontSize: FONT_SIZE.md, color: COLORS.white, fontWeight: '700' },
+  revokeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.warning,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm + 2,
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  revokeBtnText: { fontSize: FONT_SIZE.sm, color: COLORS.warning, fontWeight: '600' },
 });

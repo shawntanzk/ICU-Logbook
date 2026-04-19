@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,18 +12,65 @@ import { COBATRICE_DOMAINS, COLORS, FONT_SIZE, SPACING, RADIUS } from '../utils/
 import { formatDisplay } from '../utils/dateUtils';
 import type { DashboardStackProps } from '../navigation/types';
 
+type CaseFilter = 'all' | 'logged' | 'supervised' | 'observed' | 'unsupervised';
+
+const FILTER_OPTIONS: { id: CaseFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'logged', label: 'Logged' },
+  { id: 'supervised', label: 'Supervised' },
+  { id: 'observed', label: 'Observed' },
+  { id: 'unsupervised', label: 'Unsupervised' },
+];
+
 export function DashboardScreen({ navigation }: DashboardStackProps<'DashboardHome'>) {
   const { cases, casesThisMonth, domainCounts, fetchCases } = useCaseStore();
   const { procedures, successRate, fetchProcedures } = useProcedureStore();
-  const { userName, role } = useAuthStore();
+  const { userId, userName, role } = useAuthStore();
+  const [filter, setFilter] = useState<CaseFilter>('all');
 
   useEffect(() => {
     fetchCases();
     fetchProcedures();
   }, []);
 
+  const ownedCount = useMemo(
+    () => cases.filter((c) => c.ownerId === userId).length,
+    [cases, userId]
+  );
+  const supervisedCount = useMemo(
+    () => cases.filter((c) => c.supervisorUserId === userId).length,
+    [cases, userId]
+  );
+  const pendingApprovalCount = useMemo(
+    () =>
+      cases.filter(
+        (c) => c.supervisorUserId === userId && !c.approvedBy
+      ).length,
+    [cases, userId]
+  );
+
+  const filteredCases = useMemo(() => {
+    switch (filter) {
+      case 'logged':
+        return cases.filter((c) => c.ownerId === userId);
+      case 'supervised':
+        return cases.filter((c) => c.supervisorUserId === userId);
+      case 'observed':
+        return cases.filter((c) => c.observerUserId === userId);
+      case 'unsupervised':
+        return cases.filter(
+          (c) =>
+            c.ownerId === userId &&
+            !c.supervisorUserId &&
+            !c.externalSupervisorName
+        );
+      default:
+        return cases;
+    }
+  }, [cases, filter, userId]);
+
   const maxDomainCount = Math.max(...Object.values(domainCounts), 1);
-  const recentCases = cases.slice(0, 5);
+  const recentCases = filteredCases.slice(0, 5);
   const domainsTouched = Object.values(domainCounts).filter((c) => c > 0).length;
 
   return (
@@ -34,24 +81,38 @@ export function DashboardScreen({ navigation }: DashboardStackProps<'DashboardHo
           <View>
             <Text style={styles.headerGreeting}>Welcome, {userName || 'Doctor'}</Text>
             <Text style={styles.headerSub}>
-              {role === 'supervisor' ? 'Supervisor View · Read Only' : 'Your clinical progress'}
+              {role === 'admin' ? 'Administrator · all records' : 'Your clinical progress'}
             </Text>
           </View>
-          {role === 'supervisor' && (
+          {role === 'admin' && (
             <View style={styles.supervisorBadge}>
-              <Ionicons name="ribbon" size={14} color={COLORS.accent} />
-              <Text style={styles.supervisorBadgeText}>Supervisor</Text>
+              <Ionicons name="shield" size={14} color={COLORS.accent} />
+              <Text style={styles.supervisorBadgeText}>Admin</Text>
             </View>
           )}
         </View>
 
-        {/* Stats */}
+        {/* Stats — split logged vs supervised so the two roles are legible */}
         <View style={styles.statsRow}>
-          <StatCard label="Total Cases" value={cases.length} icon="document-text" />
+          <StatCard label="Logged" value={ownedCount} icon="document-text" />
           <View style={styles.statGap} />
-          <StatCard label="This Month" value={casesThisMonth} icon="calendar" color={COLORS.accent} />
+          <StatCard label="Supervised" value={supervisedCount} icon="shield-checkmark" color={COLORS.accent} />
           <View style={styles.statGap} />
           <StatCard label="Procedures" value={procedures.length} icon="medkit" color={COLORS.warning} />
+        </View>
+        <View style={[styles.statsRow, { marginTop: -SPACING.sm }]}>
+          <StatCard label="This Month" value={casesThisMonth} icon="calendar" color={COLORS.primaryLight} />
+          {pendingApprovalCount > 0 && (
+            <>
+              <View style={styles.statGap} />
+              <StatCard
+                label="Awaiting your approval"
+                value={pendingApprovalCount}
+                icon="hourglass"
+                color={COLORS.warning}
+              />
+            </>
+          )}
         </View>
 
         {procedures.length > 0 && (
@@ -106,22 +167,61 @@ export function DashboardScreen({ navigation }: DashboardStackProps<'DashboardHo
           )}
         </Card>
 
-        {/* Recent Cases */}
-        {recentCases.length > 0 && (
-          <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Cases</Text>
-            {recentCases.map((c, i) => (
-              <View key={c.id} style={[styles.recentItem, i < recentCases.length - 1 && styles.recentItemBorder]}>
-                <Text style={styles.recentDate}>{formatDisplay(c.date)}</Text>
-                <Text style={styles.recentDiagnosis} numberOfLines={1}>{c.diagnosis}</Text>
-                <Text style={styles.recentDomains}>
-                  {c.cobatriceDomains.length} domain{c.cobatriceDomains.length !== 1 ? 's' : ''}
-                  {!c.synced && <Text style={styles.unsyncedTag}> · Pending sync</Text>}
-                </Text>
-              </View>
-            ))}
-          </Card>
-        )}
+        {/* Filter pills */}
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Cases</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+            {FILTER_OPTIONS.map((opt) => {
+              const active = filter === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.filterPill, active && styles.filterPillActive]}
+                  onPress={() => setFilter(opt.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {recentCases.length === 0 ? (
+            <Text style={styles.emptyNote}>No cases match this filter.</Text>
+          ) : (
+            recentCases.map((c, i) => {
+              const relation =
+                c.ownerId === userId
+                  ? c.supervisorUserId || c.externalSupervisorName
+                    ? 'Logged'
+                    : 'Logged · unsupervised'
+                  : c.supervisorUserId === userId
+                    ? 'You supervised'
+                    : c.observerUserId === userId
+                      ? 'You observed'
+                      : '';
+              const awaiting = c.supervisorUserId === userId && !c.approvedBy;
+              return (
+                <View
+                  key={c.id}
+                  style={[styles.recentItem, i < recentCases.length - 1 && styles.recentItemBorder]}
+                >
+                  <Text style={styles.recentDate}>{formatDisplay(c.date)}</Text>
+                  <Text style={styles.recentDiagnosis} numberOfLines={1}>{c.diagnosis}</Text>
+                  <Text style={styles.recentDomains}>
+                    {relation ? `${relation} · ` : ''}
+                    {c.cobatriceDomains.length} domain{c.cobatriceDomains.length !== 1 ? 's' : ''}
+                    {c.approvedBy && <Text style={styles.approvedTag}> · Approved</Text>}
+                    {awaiting && <Text style={styles.unsyncedTag}> · Awaiting your approval</Text>}
+                    {!c.synced && <Text style={styles.unsyncedTag}> · Pending sync</Text>}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -171,4 +271,18 @@ const styles = StyleSheet.create({
   recentDiagnosis: { fontSize: FONT_SIZE.md, color: COLORS.text, fontWeight: '500', marginVertical: 2 },
   recentDomains: { fontSize: FONT_SIZE.xs, color: COLORS.accent },
   unsyncedTag: { color: COLORS.warning },
+  approvedTag: { color: COLORS.success, fontWeight: '600' },
+  filterRow: { flexGrow: 0, marginBottom: SPACING.sm },
+  filterPill: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+    marginRight: SPACING.xs,
+  },
+  filterPillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  filterPillText: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, fontWeight: '600' },
+  filterPillTextActive: { color: COLORS.white },
 });

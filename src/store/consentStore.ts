@@ -19,7 +19,7 @@ interface ConsentState {
 }
 
 export const useConsentStore = create<ConsentState>((set) => ({
-  status: 'none',
+  status: 'commercial',
   hasChosen: false,
   hydrated: false,
 

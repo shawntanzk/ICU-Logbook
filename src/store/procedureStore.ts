@@ -12,6 +12,8 @@ interface ProcedureStore {
   fetchProcedures: () => Promise<void>;
   addProcedure: (input: ProcedureLogInput) => Promise<ProcedureLog>;
   deleteProcedure: (id: string) => Promise<void>;
+  approveProcedure: (id: string) => Promise<void>;
+  revokeProcedureApproval: (id: string) => Promise<void>;
   refreshStats: () => Promise<void>;
 }
 
@@ -44,6 +46,16 @@ export const useProcedureStore = create<ProcedureStore>((set, get) => ({
     await ProcedureService.delete(id);
     set((s) => ({ procedures: s.procedures.filter((p) => p.id !== id) }));
     get().refreshStats();
+  },
+
+  approveProcedure: async (id) => {
+    const updated = await ProcedureService.approve(id);
+    set((s) => ({ procedures: s.procedures.map((p) => (p.id === id ? updated : p)) }));
+  },
+
+  revokeProcedureApproval: async (id) => {
+    const updated = await ProcedureService.revokeApproval(id);
+    set((s) => ({ procedures: s.procedures.map((p) => (p.id === id ? updated : p)) }));
   },
 
   refreshStats: async () => {

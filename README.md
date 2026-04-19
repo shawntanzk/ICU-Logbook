@@ -36,10 +36,14 @@ All data is stored **on the device** first (offline-first). A sync button upload
 
 ## 2. Who Is It For?
 
-| Role | What they do in the app |
+The app has two account types:
+
+| Role | What they can do |
 |---|---|
-| **Trainee** (ICU registrar / fellow) | Logs cases and procedures, tracks their own competency, writes reflections |
-| **Supervisor** (Consultant ICU physician) | Views trainee records in read-only mode, reviews progress |
+| **User** (ICU doctor / trainee / fellow / consultant) | Logs their own cases and procedures. Sees anything they own, *or* where they are listed as the supervisor / observer on someone else's record. Writes reflections, tracks their own competency. |
+| **Admin** | All of the above, plus: sees every record on the mock server regardless of owner, manages user accounts (create, disable, reset password, toggle role) from the Admin Panel. |
+
+There is no separate "supervisor" or "trainee" role — supervision and observation are recorded **per record** via user pickers, not as account-level roles. A user can supervise one case and be supervised on another without any admin configuration.
 
 ---
 
@@ -47,31 +51,34 @@ All data is stored **on the device** first (offline-first). A sync button upload
 
 ### Implemented in this MVP
 
-- **Login screen** — name + role selection (Trainee or Supervisor). No password in demo mode.
-- **Case Log** — full form with date, diagnosis, ICD-10 code, organ systems, CoBaTrICE domains, supervision level, and reflection notes.
-- **Procedure Log** — procedure type, attempts, success/fail outcome, complications, optional link to a case.
-- **Dashboard** — stat cards (total cases, this month, procedures, success rate), competency dot grid, domain coverage bars, recent cases.
+- **First-run setup** — on first launch (or after a data wipe), if the server database has zero accounts the app forces the creation of an initial **admin** account (email + display name + password) and signs them in immediately. No account is seeded in code.
+- **Login screen** — email + password against the mock server DB. Sessions are backed by a server-side `sessions` table (30-day expiry) with the active token cached locally.
+- **Admin Panel** (Settings → Admin Panel) — admins can create users, toggle role between `admin` and `user`, disable accounts, reset passwords, and delete users.
+- **Case Log** — full form with date, diagnosis, ICD-10 code, organ systems, CoBaTrICE domains, supervision level, reflection, and **Supervised by / Observed by** user pickers that attach two other users to the record.
+- **Procedure Log** — procedure type, attempts, success/fail outcome, complications, optional link to a case, plus the same **Supervised by / Observed by** pickers.
+- **Owner-scoped visibility** — every record carries an `owner_id`. Users see only records they own, supervised, or observed. Admins see every record. All queries enforce this server-side via a SQL `WHERE` fragment.
+- **Dashboard** — stat cards (total cases, this month, procedures, success rate, domains covered), competency dot grid, domain coverage bars, recent cases. Admins see a "Administrator · all records" subtitle and a shield badge.
 - **Competency Heatmap** — 3×4 grid of all 12 CoBaTrICE domains, colour-coded by case count (grey → light blue → medium blue → primary blue).
-- **Case List** — searchable, filterable list of all cases. Tap any case to view full details.
-- **Case Detail** — full case view with linked procedures, sync status, AI summary button, and delete (trainees only).
+- **Case List** — searchable, filterable list of visible cases with an **owner** badge and a "You supervised" / "You observed" pill when the record isn't yours. Tap any case to view full details.
+- **Case Detail** — full case view with owner / supervisor / observer rows (resolved to display names), linked procedures, sync status, AI summary button, and a delete button shown **only to the owner**.
+- **Procedure List** — same owner badge + relation pill as the case list.
 - **AI Summary** (mock) — generates a context-aware plain-English summary of any case from its data fields. Ready to connect to a real AI API.
 - **Sync** — sync button in Settings shows real pending count, uploads to a mock Supabase client, marks records synced, shows last sync time.
-- **Supervisor mode** — read-only; Add Case screen is locked, delete buttons hidden, supervisor banner displayed.
 - **Offline-first** — all data saved locally to SQLite before any network call.
 - **Semantic coding** — every case and procedure is silently bound to SNOMED CT, ICD-10, CoBaTrICE, and Ottawa EPA codes at save-time. The UX doesn't change; the data underneath becomes machine-readable.
-- **Data-sharing consent** — four-way consent model (private / anonymous aggregate / research / commercial). Default is private until the user explicitly chooses.
+- **Data-sharing consent** — four-way consent model (private / anonymous aggregate / research / commercial). **Default is commercial** (fully-anonymised, opt-out); users can downgrade at any time in Settings.
 - **Standards-based export** — export all consented records as HL7 FHIR R4 Bundle, openEHR Composition, JSON-LD (semantic linked data), or a human-readable data dictionary. Accessed from Settings → Data Sharing & Export.
 - **Provenance + quality metadata** — every record carries app version, schema version, locale, timezone, completeness score, and coding confidence. Consumers can audit what they're buying.
 - **De-identification pipeline** — exports scrub PII patterns, shift dates to epoch-week, and redact device IDs automatically.
 
 ### Not yet implemented (see [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md))
 
-- Real authentication (passwords, JWT tokens)
-- Real cloud backend
+- Real cloud backend (current auth/user store is a second SQLite file standing in for the server)
 - PDF/CSV export
 - Push notifications
 - Date picker UI
 - Edit existing cases
+- Supervisor countersign / approval workflow (pickers record who supervised; there's no approval state yet)
 
 ---
 
@@ -79,11 +86,14 @@ All data is stored **on the device** first (offline-first). A sync button upload
 
 > The app uses a bottom tab bar with five tabs: **Dashboard**, **Cases**, **Add Case**, **Procedures**, and **Settings**.
 
+### First-Run Setup Screen
+Only shown when the server database has zero accounts (fresh install, or after erasing app data). Enter an email, display name, and password (min 6 chars), confirm the password, and tap **Create Admin & Sign In**. The form refuses to run if any user already exists, so it can't be used to bypass the Admin Panel.
+
 ### Login Screen
-The first screen on launch. Enter your name, select whether you are a Trainee or Supervisor, and tap **Continue**. No password is required in demo mode.
+Shown on every subsequent launch while signed out. Enter your email + password and tap **Sign In**. Wrong credentials show inline errors from the auth service ("No account with that email.", "Incorrect password.", "This account has been disabled."). Sessions are 30-day server-side tokens cached locally; closing the app keeps you signed in.
 
 ### Dashboard
-Shows four stat cards at the top (Total Cases, This Month, Procedures, Success Rate). Below is a blue banner that opens the **Competency Map**. Further down are domain coverage bars and a list of the five most recent cases. Pending-sync cases are labelled "Pending sync" in amber.
+Header greets the signed-in user by display name. Admins see "Administrator · all records" underneath and a shield **Admin** badge; regular users see "Your clinical progress". Four stat cards at the top (Total Cases, This Month, Procedures). A second row appears once procedures exist (Success Rate, Domains Covered). Below is a blue banner that opens the **Competency Map**. Further down are domain coverage bars and a list of the five most recent cases. Pending-sync cases are labelled "Pending sync" in amber.
 
 ### Competency Map
 A 3-column grid of all 12 CoBaTrICE domains. Each cell shows:
@@ -101,16 +111,19 @@ A scrollable form. Fields:
 4. **Organ Systems** — tap chips to multi-select (Respiratory, Cardiovascular, etc.)
 5. **CoBaTrICE Domains** — tap chips to multi-select (12 domains)
 6. **Supervision Level** — radio buttons: Observed / Supervised / Unsupervised
-7. **Reflection** — free text, multi-line
+7. **Supervised by** — user picker (modal). Defaults to "None". Selects from all other active users.
+8. **Observed by** — user picker (modal). Defaults to "None". Selects from all other active users.
+9. **Reflection** — free text, multi-line
 
-Tap **Save Case**. Validation errors appear inline. A success alert confirms the save.
+Tap **Save Case**. Validation errors appear inline. A success alert confirms the save. The case is stamped with your user ID as `owner_id`, plus the two optional user IDs for supervisor/observer.
 
 ### Case List
-All logged cases, newest first. A search bar filters by diagnosis, ICD-10 code, or date. Each row shows:
+All visible cases, newest first (bounded by owner-scoped visibility — users see own + supervised + observed; admins see all). A search bar filters by diagnosis, ICD-10 code, or date. Each row shows:
 - Date
 - Diagnosis
 - Number of domains and systems covered
 - A coloured supervision badge (OBS / SUP / UNS)
+- **Owner** (display name, or "You"), plus a pill labelled *You supervised* or *You observed* when the record belongs to someone else
 
 Pull down to refresh.
 
@@ -118,13 +131,14 @@ Pull down to refresh.
 Full case view. Includes:
 - **AI Clinical Summary** button (purple, top of screen) — generates a plain-English summary from the case data
 - All case fields displayed in labelled sections
+- **Owner / Supervised by / Observed by** rows resolved to display names via the user directory
 - Chip lists for organ systems and domains
 - Linked procedures (if any were logged against this case)
 - Sync status and logged timestamp at the bottom
-- Delete button (trainees only)
+- Delete button shown **only to the owner** of the record (admins cannot delete other users' cases from this screen)
 
 ### Procedures
-Lists all procedures, newest first. Each row shows a coloured left border (green = success, red = fail), procedure type, date, attempt count, and a Success / Fail badge. Tap the + button or "Log Procedure" to add one.
+Lists visible procedures, newest first (same owner + supervised + observed scope as cases). Each row shows a coloured left border (green = success, red = fail), procedure type, date, attempt count, owner name, optional "You supervised / observed" pill, and a Success / Fail badge. Tap the + button or "Log Procedure" to add one.
 
 ### Add Procedure Form
 - **Procedure Type** — tap a chip from the list of 16 ICU procedures
@@ -132,15 +146,25 @@ Lists all procedures, newest first. Each row shows a coloured left border (green
 - **Outcome** — toggle switch (Successful / Unsuccessful)
 - **Complications** — free text, optional
 - **Link to Case** — horizontal scrollable row of recent cases (optional)
+- **Supervised by / Observed by** — user pickers, same pattern as the case form
 
 ### Settings
 Shows:
-- Your name and role, with a Synced / Pending / Syncing pill
-- **Sync Now** button — uploads all unsynced records to the (mock) Supabase backend, shows result
-- Last synced timestamp
-- Data summary (case count, procedure count)
-- Export and Clear Data (placeholders, coming in a future release)
+- Your display name and role (User / Administrator), with a shield icon for admins
+- **Sync Now** — uploads all unsynced records to the (mock) Supabase backend, shows result
+- Last synced timestamp and data summary (case count, procedure count)
+- **Data Sharing & Consent** → four-way consent screen
+- **Export** → FHIR / openEHR / JSON-LD / data dictionary
+- **Admin Panel** (admins only) — create / disable / role-toggle / password-reset / delete users
 - Sign Out button
+
+### Admin Panel (admins only)
+Reachable from **Settings → Admin Panel**. Lists every account in the server DB with their role badge (Admin / User) and disabled state. Actions per row:
+- Tap the role to toggle between admin and user
+- Disable / re-enable (kills active sessions on disable)
+- Reset password to an admin-chosen value
+- Delete user
+- **Create User** button — email, display name, password, role (defaults to `user`)
 
 ---
 
@@ -175,21 +199,29 @@ ICU-Logbook/
     │   ├── CaseLog.ts           ← CaseLog type and Zod schema
     │   └── ProcedureLog.ts      ← ProcedureLog type and Zod schema
     │
-    ├── database/                ← Local SQLite layer
-    │   ├── client.ts            ← Opens the database, singleton connection
-    │   └── migrations.ts        ← Creates and upgrades database tables
+    ├── database/                ← Two SQLite files: local cache + mock server
+    │   ├── client.native.ts     ← Opens icu_logbook.db (offline cache)
+    │   ├── client.web.ts        ← Web stub
+    │   ├── migrations.ts        ← v1→v5 local schema migrations (additive)
+    │   ├── serverClient.native.ts ← Opens icu_logbook_server.db (users/sessions)
+    │   ├── serverClient.web.ts  ← Web stub
+    │   └── serverMigrations.ts  ← v1→v2 server schema migrations
     │
     ├── services/                ← All data operations (no UI logic here)
     │   ├── DataService.ts       ← Shared interfaces (IDataService, ISyncService)
     │   ├── CaseService.ts       ← CRUD + queries for cases
     │   ├── ProcedureService.ts  ← CRUD + queries for procedures
+    │   ├── AuthService.ts       ← signIn, signOut, session restore, hasAnyUser, createFirstAdmin, user CRUD
+    │   ├── AuthScope.ts         ← SQL WHERE fragments for per-user visibility
+    │   ├── passwordHash.ts      ← Salt + hash helpers for the mock server
     │   ├── SyncService.ts       ← Uploads unsynced records to Supabase
     │   └── supabase.ts          ← Mock Supabase client (swap for real later)
     │
     ├── store/                   ← Reactive state (what screens read and write)
-    │   ├── authStore.ts         ← Login state, user name, role
+    │   ├── authStore.ts         ← Session, user, role, needsInitialSetup flag
     │   ├── caseStore.ts         ← Case list, domain counts, month count
     │   ├── procedureStore.ts    ← Procedure list, success rate, type counts
+    │   ├── consentStore.ts      ← Four-way data-sharing consent
     │   └── syncStore.ts         ← Sync in-progress state, last sync time
     │
     ├── components/              ← Reusable UI building blocks
@@ -200,9 +232,11 @@ ICU-Logbook/
     │   ├── FormField.tsx        ← Labelled text input with error display
     │   ├── MultiSelect.tsx      ← Toggleable chip grid for multi-select
     │   ├── RadioGroup.tsx       ← Radio button list with descriptions
-    │   └── StatCard.tsx         ← Dashboard stat tile (icon + number + label)
+    │   ├── StatCard.tsx         ← Dashboard stat tile (icon + number + label)
+    │   └── UserPicker.tsx       ← Modal single-select picker for a user
     │
     ├── screens/                 ← One file per screen
+    │   ├── FirstRunSetupScreen.tsx   ← Initial admin creation when DB has no users
     │   ├── LoginScreen.tsx
     │   ├── DashboardScreen.tsx
     │   ├── CompetencyScreen.tsx
@@ -211,11 +245,14 @@ ICU-Logbook/
     │   ├── AddCaseScreen.tsx
     │   ├── ProcedureListScreen.tsx
     │   ├── AddProcedureScreen.tsx
-    │   └── SettingsScreen.tsx
+    │   ├── SettingsScreen.tsx
+    │   ├── ConsentScreen.tsx
+    │   ├── ExportScreen.tsx
+    │   └── AdminPanelScreen.tsx
     │
     ├── navigation/              ← Screen routing
     │   ├── types.ts             ← TypeScript types for all navigation routes
-    │   └── RootNavigator.tsx    ← Full navigator tree (auth gate + tabs + stacks)
+    │   └── RootNavigator.tsx    ← Auth gate (Setup / Login / Main) + tabs + stacks
     │
     └── utils/                   ← Small helper functions
         ├── constants.ts         ← Colours, spacing, CoBaTrICE domains, organ systems
@@ -299,21 +336,37 @@ A QR code and menu will appear in the terminal.
 
 ### First launch
 
-On the very first launch, the app creates the local database. You will see a brief "Initialising…" screen, then the Login screen.
+On the very first launch the app creates two SQLite databases (`icu_logbook.db` for the offline cache, `icu_logbook_server.db` as the mock remote server) and runs all migrations. Because the server DB starts empty, you'll be routed to the **First-Run Setup** screen to create the initial admin account. Fill it in, tap *Create Admin & Sign In*, and you land straight in the app.
+
+> To reset back to first-run setup at any time, erase the simulator ("Device → Erase All Content and Settings…") or delete and reinstall Expo Go / your dev client on a physical device. Both SQLite files live inside the app sandbox, so removing the app removes all data.
 
 ---
 
 ## 9. Using the App
 
+### First-run admin setup
+
+The very first time the app runs (or after erasing app data), no user accounts exist. The app detects this and forces the **Setup** screen:
+
+1. Enter an email
+2. Enter a display name
+3. Enter a password (minimum 6 characters) and confirm it
+4. Tap **Create Admin & Sign In**
+
+That first account is always an admin, and the setup flow refuses to run after any user exists — so it can't be used as a back-door once the Admin Panel is in use.
+
 ### Logging in
 
-1. Enter your name (e.g. "Dr Smith")
-2. Tap **Trainee** or **Supervisor**
-3. Tap **Continue**
+1. Enter your email and password
+2. Tap **Sign In**
 
-No password is required. This is a demo — see [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md) for how to add real authentication.
+Sessions last 30 days and survive app restarts. If you want to switch accounts, use **Settings → Sign Out**.
 
-### Logging a case (Trainees only)
+### Creating additional users
+
+Only admins can create accounts. **Settings → Admin Panel → Create User** — set email, display name, password, and role (user or admin). Users can then log in with those credentials on any device.
+
+### Logging a case
 
 1. Tap the **Add Case** tab (the ＋ icon in the bottom bar)
 2. Fill in the date in `YYYY-MM-DD` format (e.g. `2026-04-17`)
@@ -322,10 +375,11 @@ No password is required. This is a demo — see [PRODUCTION_ROADMAP.md](PRODUCTI
 5. Tap one or more **organ systems** (they highlight in blue when selected)
 6. Tap one or more **CoBaTrICE domains**
 7. Select a supervision level
-8. Optionally write a reflection
-9. Tap **Save Case**
+8. Optionally pick a **Supervised by** and / or **Observed by** user from the modal picker
+9. Optionally write a reflection
+10. Tap **Save Case**
 
-The case appears immediately in the **Cases** tab and updates the Dashboard.
+The case appears immediately in the **Cases** tab — for you (as owner) and for whoever you named as supervisor / observer. It updates the Dashboard for all three.
 
 ### Logging a procedure
 
@@ -336,7 +390,8 @@ The case appears immediately in the **Cases** tab and updates the Dashboard.
 5. Toggle the outcome switch
 6. Optionally add complications text
 7. Optionally link to one of your recent cases
-8. Tap **Save Procedure**
+8. Optionally pick **Supervised by** / **Observed by**
+9. Tap **Save Procedure**
 
 ### Viewing competency progress
 
@@ -352,13 +407,21 @@ The case appears immediately in the **Cases** tab and updates the Dashboard.
 
 > In this demo, sync uses a mock Supabase client. No data leaves the device. See [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md) for real sync setup.
 
-### Supervisor mode
+### Who sees what
 
-If you logged in as a **Supervisor**:
-- You can view all cases and procedures in read-only mode
-- The **Add Case** tab shows a locked screen
-- Case detail screens show a "Supervisor View" banner and hide the Delete button
-- Your role is shown in the Settings user card
+Visibility is enforced at the SQL layer via a scoped `WHERE` fragment:
+
+| Account | Sees |
+|---|---|
+| **User** | Records they own, plus records where they're named as the supervisor or observer |
+| **Admin** | Every record in the server DB |
+
+Users who didn't create a record can still view its full detail (they're a participant), but the **Delete** button on Case Detail is gated on ownership — only the owner can delete.
+
+### Admin-only tasks
+
+- **Settings → Admin Panel** lists every account with actions to toggle role, disable, reset password, delete, and create new users.
+- Admins also see a shield **Admin** badge and an "Administrator · all records" subtitle on the Dashboard.
 
 ### Signing out
 
@@ -370,11 +433,11 @@ If you logged in as a **Supervisor**:
 
 ## 10. Data & Privacy
 
-- All data is stored **only on the device** in a local SQLite database file called `icu_logbook.db`
-- No data is sent anywhere unless you tap **Sync Now**
-- In this demo, the sync target is a mock client — no real server receives any data
-- Deleting the app removes all local data permanently
-- **Data-sharing consent** is explicitly opt-in. The default is *Private* — records never leave the device until the user selects one of Anonymous / Research / Commercial in **Settings → Data sharing consent**.
+- All data is stored **only on the device**, in two SQLite files: `icu_logbook.db` (the offline cache of cases / procedures) and `icu_logbook_server.db` (a stand-in for the remote server — users, sessions, and the source-of-truth copy of each record). Both live inside the app sandbox (`.../Library/LocalDatabase/` on iOS).
+- Passwords are salted + hashed before being written to the server DB; only session tokens are cached on the device.
+- No data is sent anywhere unless you tap **Sync Now** — and in this demo the sync target is a mock client, so even that doesn't leave the device.
+- Deleting the app removes both DBs permanently. On next install the app returns to the first-run setup flow because the server DB has zero accounts.
+- **Data-sharing consent** is opt-out. The default is **Commercial** — because every payload is fully anonymised at the client (PII scrubbed, dates epoch-weeked, device ID redacted), there is no identifying information to protect. Users can downgrade to *Research*, *Anonymous aggregate only*, or *Private* at any time in **Settings → Data sharing consent**.
 - **Exports are de-identified at the client.** Free-text fields are scrubbed for PII patterns, dates are shifted to epoch-week, and device IDs are redacted before any payload leaves the app. See [Section 11: FAIR Semantic Data Product](#11-fair-semantic-data-product).
 
 > For clinical deployment, refer to [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md) for data governance, encryption, and HIPAA/GDPR compliance requirements.
@@ -400,17 +463,55 @@ This section documents the architecture that makes that possible.
 
 The app holds a curated mapping from its local identifiers (what the user picks in the UI) to canonical codes (what gets exported):
 
-| Concept | Bound to | File |
+| Concept | Primary binding | OBO / Monarch mapping | File |
+|---|---|---|---|
+| Diagnosis (ICD-10) | ICD-10 + SNOMED CT | **MONDO** (Monarch Disease Ontology) | `src/data/icd10.ts` |
+| Organ system | SNOMED CT body-structure | **UBERON** (OBO anatomy) | `src/data/organSystems.ts` |
+| CoBaTrICE domain | `https://w3id.org/iculogbook/cobatrice/<id>` | — | `src/data/cobatrice.ts` |
+| Supervision level | Ottawa EPA entrustment scale | — | `src/data/supervision.ts` |
+| Procedure type | SNOMED CT (where available) | **NCIT** (planned) | `src/data/procedures.ts` |
+
+The canonical URIs for every code system live in `src/data/codeSystems.ts`, including the OBO Foundry PURLs (MONDO, UBERON, HP, NCIT, CHEBI, OBI, ENVO) and the Biolink Model prefix. Persistent IRIs use [w3id.org](https://w3id.org) redirects so the identifier stays stable even if hosting moves.
+
+### 11.3 OBO Foundry + Monarch Initiative KG alignment
+
+The healthcare-interoperability stack (FHIR / ICD-10 / SNOMED CT) is excellent for *clinical exchange* but is not directly joinable with the biomedical research graph. The biomedical research world lives on the [OBO Foundry](https://obofoundry.org) and the [Monarch Initiative KG](https://monarchinitiative.org), which are built on a different backbone: MONDO for diseases, UBERON for anatomy, HP for phenotypes, all aligned by the [Biolink Model](https://biolink.github.io/biolink-model/).
+
+To make the ICU Logbook dataset valuable to *both* audiences, every coded value is exported as a **FHIR-style dual coding**: a primary clinical code plus an OBO mapping in the `mappings[]` array. Consumers pick whichever system their toolchain speaks.
+
+**Mapping strategy:**
+
+| Data element | Exported as | Joins with (Monarch KG / OBO) |
 |---|---|---|
-| Diagnosis (ICD-10) | ICD-10 + optional SNOMED CT | `src/data/icd10.ts` |
-| Organ system | SNOMED CT body-structure codes | `src/data/organSystems.ts` |
-| CoBaTrICE domain | `https://w3id.org/iculogbook/cobatrice/<id>` | `src/data/cobatrice.ts` |
-| Supervision level | Ottawa EPA entrustment scale | `src/data/supervision.ts` |
-| Procedure type | SNOMED CT procedure codes (where available) | `src/data/procedures.ts` |
+| Diagnosis | `ICD-10` (primary) + `SNOMED CT` + `MONDO` | gene–disease, phenotype–disease, drug–disease associations |
+| Organ system | `SNOMED CT` (primary) + `UBERON` | tissue atlases, developmental-biology resources |
+| Procedure | `SNOMED CT` (primary); `NCIT` planned | intervention/treatment graphs |
+| Case / Procedure class | `icu:Case` / `icu:Procedure` → `biolink:ClinicalEntity` / `biolink:ClinicalIntervention` | entire Biolink-aligned ecosystem |
 
-The canonical URIs for every code system live in `src/data/codeSystems.ts`. Persistent IRIs use [w3id.org](https://w3id.org) redirects so the identifier stays stable even if hosting moves.
+**How to join with the Monarch KG:**
 
-### 11.3 Record shape (v2 schema)
+1. Export records as JSON-LD (`Settings → Data Sharing & Export → JSON-LD`).
+2. For each record, extract any `mappings[]` entry whose `system` starts with `http://purl.obolibrary.org/obo/`.
+3. That MONDO/UBERON term IRI is the pivot — query the Monarch KG (via its [SPARQL endpoint](https://monarchinitiative.org/) or [BioLink API](https://api.monarchinitiative.org/api/)) for associated genes, phenotypes, drugs, model organisms, or published studies.
+4. Join the results back to the ICU record via the persistent IRI (`https://w3id.org/iculogbook/id/case/<uuid>`).
+
+Example — an exported MRSA-sepsis case will carry `ICD-10:A41.02`, `SNOMED:432295005`, and `MONDO:0005737` (sepsis). That MONDO term is already the central node for sepsis in the Monarch KG, so the case immediately lands in its gene/drug/phenotype neighbourhood with zero additional ETL.
+
+**Ontologies used (OBO Foundry PURLs):**
+
+| Ontology | Prefix | URL | Used for |
+|---|---|---|---|
+| Monarch Disease Ontology | `MONDO` | `http://purl.obolibrary.org/obo/mondo.owl` | Diagnoses |
+| Uber-anatomy Ontology | `UBERON` | `http://purl.obolibrary.org/obo/uberon.owl` | Organ systems |
+| Human Phenotype Ontology | `HP` | `http://purl.obolibrary.org/obo/hp.owl` | Phenotypes (future) |
+| NCI Thesaurus | `NCIT` | `http://purl.obolibrary.org/obo/ncit.owl` | Procedures, drugs (planned) |
+| Chemical Entities of Biological Interest | `CHEBI` | `http://purl.obolibrary.org/obo/chebi.owl` | Toxicology (future) |
+| Ontology for Biomedical Investigations | `OBI` | `http://purl.obolibrary.org/obo/obi.owl` | Study-level metadata (planned) |
+| Biolink Model | `biolink` | `https://w3id.org/biolink/vocab/` | Category alignment across all of the above |
+
+The JSON-LD `@context` (both the inline copy in `JSONLDExporter.ts` and the published `assets/schema/context.jsonld`) carries all these prefixes, so any RDF tool that parses the export automatically gets dereferenceable OBO/Biolink IRIs.
+
+### 11.4 Record shape (v2 schema)
 
 Every saved `CaseLog` and `ProcedureLog` now carries, in addition to the original user-facing fields:
 
@@ -423,7 +524,7 @@ Every saved `CaseLog` and `ProcedureLog` now carries, in addition to the origina
 
 Original columns (`diagnosis`, `organSystems`, `cobatriceDomains`, `supervisionLevel`) are preserved unchanged so the existing UI and sync path keep working. The v2 migration is additive (`ALTER TABLE ADD COLUMN`), so no existing data is touched.
 
-### 11.4 Consent model
+### 11.5 Consent model
 
 Consent is asked explicitly (`src/screens/ConsentScreen.tsx`) and persisted via `ConsentService`. Four options:
 
@@ -432,9 +533,9 @@ Consent is asked explicitly (`src/screens/ConsentScreen.tsx`) and persisted via 
 3. **Research** — additionally, fully-anonymised individual records may be shared with academic / training-body research partners under a non-commercial licence.
 4. **Commercial** — additionally, fully-anonymised individual records may be included in commercial data products.
 
-Default is `none` until the user makes an explicit choice. Consent status is attached to each record at save-time, so changing consent later only affects future records (the audit trail remains honest).
+**Default is `commercial`** — an opt-out model justified by the fact that every payload is fully anonymised at the client before leaving the device. Consent status is attached to each record at save-time, so downgrading later only affects future records (the audit trail remains honest).
 
-### 11.5 Export formats
+### 11.6 Export formats
 
 From **Settings → Data Sharing & Export → Export (FHIR / openEHR / JSON-LD)**:
 
@@ -447,7 +548,7 @@ From **Settings → Data Sharing & Export → Export (FHIR / openEHR / JSON-LD)*
 
 All formats filter by consent: only records with `consentStatus ∈ {anonymous, research, commercial}` are exported. Free-text fields are scrubbed for PII patterns, dates are shifted to epoch-week, and device IDs are redacted (`src/services/DeidentifyService.ts`).
 
-### 11.6 Schema assets
+### 11.7 Schema assets
 
 The static schema artefacts live in `assets/schema/` and are intended to be published at stable URLs (e.g. via w3id.org redirects):
 
@@ -460,7 +561,7 @@ The static schema artefacts live in `assets/schema/` and are intended to be publ
 
 Consumers point their RDF toolchain at these URLs and get a fully self-describing, validatable dataset.
 
-### 11.7 Backend plan (AWS, central)
+### 11.8 Backend plan (AWS, central)
 
 Current sync client is a mock (`src/services/supabase.ts`). The production target is a central AWS backend (S3 + Postgres/RDS + API Gateway + Cognito). The worldwide rollout model is:
 
@@ -469,7 +570,7 @@ Current sync client is a mock (`src/services/supabase.ts`). The production targe
 3. The backend maintains three derived views per consent level, refreshed on each sync. Buyers query only the view matching their contract.
 4. Since everything is already de-identified at the client before upload, there is no need for region-specific governance tooling — the dataset is fully anonymised at source.
 
-### 11.8 Unit of sale (TBD)
+### 11.9 Unit of sale (TBD)
 
 Current architecture supports any of three billing models — no data-model change needed:
 
@@ -479,7 +580,7 @@ Current architecture supports any of three billing models — no data-model chan
 
 We recommend starting with per-snapshot DOIs for research partners (highest academic legibility) and per-record for commercial integrations (cleanest contract boundary).
 
-### 11.9 What we deliberately did *not* change
+### 11.10 What we deliberately did *not* change
 
 - The logbook UX. Users still pick chips and write reflections — there is no coding burden added to any screen.
 - Existing columns in SQLite. The v2 migration is additive; v1 data stays queryable.
@@ -523,12 +624,14 @@ This is the simplest possible offline-sync pattern (sometimes called "sync flag"
 
 See [SETUP.md](SETUP.md) for step-by-step instructions including the SQL schema, environment variables, and how to replace the mock client.
 
-### Adding real authentication
+### Swapping the mock server for real Supabase Auth
 
-1. Install `@supabase/supabase-js`
-2. Create `src/services/AuthService.ts`
-3. Replace the demo login in `LoginScreen.tsx` with Supabase Auth email/password
-4. The `authStore.ts` shape stays the same — just populate it from the Supabase session
+Real authentication is already wired in — the mock "server" is a second SQLite file with `users` and `sessions` tables and salted/hashed passwords. To go live:
+
+1. Install `@supabase/supabase-js` and `@react-native-async-storage/async-storage`
+2. Replace the bodies of the six exports in `src/services/AuthService.ts` (`signIn`, `restoreSession`, `signOut`, `listUsers`, `createUser`, `updateUserRole`, `setUserDisabled`, `resetUserPassword`, `deleteUser`, `hasAnyUser`, `createFirstAdmin`) with Supabase Auth / RPC calls — every screen and store reads through this single file.
+3. Replicate the `owner_id` / `supervisor_user_id` / `observer_user_id` columns in the Supabase `case_logs` / `procedure_logs` tables and write Row-Level Security policies that mirror `AuthScope.ts` (`admin sees all`, user sees `owner OR supervisor OR observer`).
+4. Decide what to do with the first-run setup flow: in production the first admin is usually seeded via a Supabase dashboard invite, not by any app user. Either hide the setup screen behind a build flag, or keep it for self-hosted / on-prem deployments.
 
 ### Adding AI summaries
 
@@ -609,8 +712,13 @@ This usually means the database failed to open. Check that:
 
 ### I cannot see my logged cases
 
-- Cases are stored locally on the device. If you reinstalled the app, data was deleted.
-- Make sure you are signed in with the same name/role (auth is not linked to storage in the demo).
+- Cases are stored locally in `icu_logbook.db`. If you reinstalled the app, the file was deleted.
+- Visibility is owner-scoped. Signed in as a non-admin user, you only see records where you are the **owner**, **supervisor**, or **observer**. Cases you created from a different account won't appear — sign in as that account, or use an admin account.
+- If the app is stuck on the setup screen, the server DB has zero users (normal after a fresh install). Complete the setup to create the initial admin.
+
+### I want to wipe everything and start over
+
+Erase the simulator (iOS: *Device → Erase All Content and Settings…*) or delete the Expo Go / dev-client app. Both SQLite files live inside the app sandbox so uninstalling removes all data, including the admin account. On next launch you'll see the first-run setup screen again.
 
 ---
 
@@ -651,3 +759,12 @@ This usually means the database failed to open. Check that:
 | **SPDX** | Software Package Data Exchange — a standard for declaring licenses by short identifier (e.g. `CC-BY-NC-4.0`) |
 | **DataCite / DOI** | Digital Object Identifiers for datasets — citable, persistent references |
 | **Epoch week** | ISO week number since Unix epoch. A de-identification technique that preserves temporal patterns without exposing exact dates. |
+| **OBO Foundry** | A community of biomedical ontology authors committed to shared design principles and non-overlapping scope. Home of MONDO, UBERON, HP, etc. |
+| **MONDO** | Monarch Disease Ontology — an integrated disease ontology unifying ICD, SNOMED, OMIM, Orphanet, DOID, and NCIT under a single set of identifiers |
+| **UBERON** | The integrated cross-species anatomy ontology used across OBO and the Monarch KG |
+| **HP (HPO)** | Human Phenotype Ontology — the standard for describing clinical phenotypic abnormalities |
+| **NCIT** | NCI Thesaurus — a terminology maintained by the US National Cancer Institute, widely used for procedures and drugs |
+| **CHEBI** | Chemical Entities of Biological Interest — an OBO ontology for small molecules and drugs |
+| **Monarch Initiative KG** | A cross-species biomedical knowledge graph aligning disease, phenotype, gene, drug, and model-organism data. Built on OBO ontologies and the Biolink Model. |
+| **Biolink Model** | A high-level schema aligning biomedical data sources under common categories (e.g. `ClinicalEntity`, `ClinicalIntervention`). The lingua franca of the Monarch KG. |
+| **PURL** | Persistent URL — a redirect service (e.g. `purl.obolibrary.org`) that gives ontology terms stable identifiers even when hosting moves |

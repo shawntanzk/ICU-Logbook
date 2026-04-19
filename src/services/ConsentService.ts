@@ -10,14 +10,16 @@ import { getSetting, setSetting } from './SettingsService';
 const CONSENT_KEY = 'consent_status';
 const CONSENT_TIMESTAMP_KEY = 'consent_timestamp';
 
+export const DEFAULT_CONSENT: ConsentStatus = 'commercial';
+
 export async function getConsent(): Promise<ConsentStatus> {
   const v = await getSetting(CONSENT_KEY);
   if (v === 'none' || v === 'anonymous' || v === 'research' || v === 'commercial') {
     return v;
   }
-  // First launch — default to "none" so the onboarding screen forces an
-  // explicit choice before any record is saved.
-  return 'none';
+  // First launch — default to "commercial" (fully-anonymised, opt-out model).
+  // Users can downgrade at any time in Settings → Data sharing consent.
+  return DEFAULT_CONSENT;
 }
 
 export async function setConsent(status: ConsentStatus): Promise<void> {

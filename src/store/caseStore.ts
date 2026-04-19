@@ -13,6 +13,8 @@ interface CaseStore {
   addCase: (input: CaseLogInput) => Promise<CaseLog>;
   updateCase: (id: string, input: Partial<CaseLogInput>) => Promise<void>;
   deleteCase: (id: string) => Promise<void>;
+  approveCase: (id: string) => Promise<void>;
+  revokeCaseApproval: (id: string) => Promise<void>;
   refreshStats: () => Promise<void>;
 }
 
@@ -53,6 +55,16 @@ export const useCaseStore = create<CaseStore>((set, get) => ({
     await CaseService.delete(id);
     set((s) => ({ cases: s.cases.filter((c) => c.id !== id) }));
     get().refreshStats();
+  },
+
+  approveCase: async (id) => {
+    const updated = await CaseService.approve(id);
+    set((s) => ({ cases: s.cases.map((c) => (c.id === id ? updated : c)) }));
+  },
+
+  revokeCaseApproval: async (id) => {
+    const updated = await CaseService.revokeApproval(id);
+    set((s) => ({ cases: s.cases.map((c) => (c.id === id ? updated : c)) }));
   },
 
   refreshStats: async () => {

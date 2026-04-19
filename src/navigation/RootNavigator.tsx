@@ -17,6 +17,7 @@ import {
 
 // Screens
 import { LoginScreen } from '../screens/LoginScreen';
+import { FirstRunSetupScreen } from '../screens/FirstRunSetupScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { CompetencyScreen } from '../screens/CompetencyScreen';
 import { CaseListScreen } from '../screens/CaseListScreen';
@@ -27,6 +28,7 @@ import { AddProcedureScreen } from '../screens/AddProcedureScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { ConsentScreen } from '../screens/ConsentScreen';
 import { ExportScreen } from '../screens/ExportScreen';
+import { AdminPanelScreen } from '../screens/AdminPanelScreen';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -65,6 +67,7 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} options={{ title: 'Settings' }} />
       <SettingsStack.Screen name="Consent" component={ConsentScreen} options={{ title: 'Data Sharing' }} />
       <SettingsStack.Screen name="Export" component={ExportScreen} options={{ title: 'Export Data' }} />
+      <SettingsStack.Screen name="AdminPanel" component={AdminPanelScreen} options={{ title: 'Admin Panel' }} />
     </SettingsStack.Navigator>
   );
 }
@@ -90,9 +93,6 @@ const TAB_CONFIG: TabConfig[] = [
 ];
 
 function MainTabs() {
-  const { role } = useAuthStore();
-  const isSupervisor = role === 'supervisor';
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
@@ -116,16 +116,8 @@ function MainTabs() {
         component={AddCaseScreen}
         options={{
           tabBarLabel: 'Add Case',
-          // Supervisors can't log new cases
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'add-circle' : 'add-circle-outline'}
-              size={size}
-              color={isSupervisor ? COLORS.border : color}
-            />
-          ),
           headerShown: true,
-          headerTitle: isSupervisor ? 'Supervisor View' : 'Log New Case',
+          headerTitle: 'Log New Case',
           headerStyle: { backgroundColor: COLORS.primary },
           headerTintColor: COLORS.white,
           headerTitleStyle: { fontWeight: '600', fontSize: FONT_SIZE.md },
@@ -138,13 +130,15 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, needsInitialSetup } = useAuthStore();
 
   return (
     <NavigationContainer>
       <Root.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {isLoggedIn ? (
           <Root.Screen name="Main" component={MainTabs} />
+        ) : needsInitialSetup ? (
+          <Root.Screen name="Setup" component={FirstRunSetupScreen} />
         ) : (
           <Root.Screen name="Login" component={LoginScreen} />
         )}

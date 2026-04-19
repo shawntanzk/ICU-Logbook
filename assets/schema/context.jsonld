@@ -16,6 +16,13 @@
     "ucum": "http://unitsofmeasure.org/",
     "cobatrice": "https://w3id.org/iculogbook/cobatrice/",
     "ottawa": "https://w3id.org/iculogbook/ottawa-epa/",
+    "obo": "http://purl.obolibrary.org/obo/",
+    "MONDO": "http://purl.obolibrary.org/obo/MONDO_",
+    "UBERON": "http://purl.obolibrary.org/obo/UBERON_",
+    "HP": "http://purl.obolibrary.org/obo/HP_",
+    "NCIT": "http://purl.obolibrary.org/obo/NCIT_",
+    "CHEBI": "http://purl.obolibrary.org/obo/CHEBI_",
+    "biolink": "https://w3id.org/biolink/vocab/",
 
     "Case": "icu:Case",
     "Procedure": "icu:Procedure",

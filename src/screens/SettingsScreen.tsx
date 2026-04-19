@@ -126,17 +126,27 @@ export function SettingsScreen({ navigation }: Props) {
     navigation.navigate('Consent');
   }
 
+  function handleAdmin() {
+    navigation.navigate('AdminPanel');
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* User card */}
         <Card style={styles.userCard}>
           <View style={styles.userAvatar}>
-            <Ionicons name={role === 'supervisor' ? 'ribbon' : 'school'} size={28} color={COLORS.white} />
+            <Ionicons
+              name={role === 'admin' ? 'shield' : 'person'}
+              size={28}
+              color={COLORS.white}
+            />
           </View>
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{userName || 'User'}</Text>
-            <Text style={styles.userRole}>{role === 'supervisor' ? 'Supervisor · Read Only' : 'Trainee'}</Text>
+            <Text style={styles.userRole}>
+              {role === 'admin' ? 'Administrator' : 'User'}
+            </Text>
           </View>
           <SyncPill pending={status.pendingCount} syncing={isSyncing} />
         </Card>
@@ -208,6 +218,18 @@ export function SettingsScreen({ navigation }: Props) {
           />
           <SettingRow icon="trash-outline" label="Clear All Data" onPress={handleClearData} destructive />
         </Card>
+
+        {/* Admin — only visible to admins */}
+        {role === 'admin' && (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            <SettingRow
+              icon="people-outline"
+              label="Manage users"
+              onPress={handleAdmin}
+            />
+          </Card>
+        )}
 
         {/* About */}
         <Card style={styles.section}>
