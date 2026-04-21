@@ -1,44 +1,29 @@
-// Mock Supabase client — swap for real client when backend is ready.
-//
-// To switch to real Supabase:
-//   1. npm install @supabase/supabase-js
-//   2. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env
-//   3. Replace this file with:
-//        import { createClient } from '@supabase/supabase-js';
-//        export const supabase = createClient(
-//          process.env.EXPO_PUBLIC_SUPABASE_URL!,
-//          process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
-//        );
+import 'react-native-url-polyfill/auto';
+import { createClient } from '@supabase/supabase-js';
+import { secureAuthStorage } from './secureStorage';
 
-const SIMULATED_LATENCY_MS = 900;
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-function delay(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+if (!url || !key) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. Copy .env.example to .env and fill in values from the Supabase dashboard.'
+  );
 }
 
-interface MockResult {
-  data: unknown[] | null;
-  error: null | { message: string };
-}
-
-function makeTable(tableName: string) {
-  return {
-    async upsert(rows: unknown[]): Promise<MockResult> {
-      await delay(SIMULATED_LATENCY_MS);
-      console.log(`[Supabase Mock] upsert → ${tableName} (${rows.length} rows)`);
-      // Simulate occasional network error (10% chance) for realistic testing
-      if (Math.random() < 0.1) {
-        return { data: null, error: { message: 'Simulated network error' } };
-      }
-      return { data: rows as unknown[], error: null };
-    },
-    async select(): Promise<MockResult> {
-      await delay(SIMULATED_LATENCY_MS / 2);
-      return { data: [], error: null };
-    },
-  };
-}
-
-export const supabaseMock = {
-  from: (tableName: string) => makeTable(tableName),
-};
+export const supabase = createClient(url, key, {
+  auth: {
+    // Sessions live in the device keychain (iOS) / Keystore (Android)
+    // via expo-secure-store, not AsyncStorage. See secureStorage.ts for
+    // the chunking adapter that handles tokens larger than the iOS
+    // keychain 2KB item ceiling.
+    storage: secureAuthStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    // PKCE flow lets us complete the OAuth handshake on-device via
+    // exchangeCodeForSession(code), so Google sign-in works in Expo
+    // without a hosted server.
+    flowType: 'pkce',
+  },
+});

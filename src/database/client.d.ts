@@ -7,3 +7,4 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 export function getDatabase(): Promise<SQLiteDatabase>;
 export function initializeDatabase(): Promise<void>;
+export function wipeLocalData(): Promise<void>;

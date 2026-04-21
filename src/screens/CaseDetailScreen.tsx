@@ -75,7 +75,7 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
   const { caseId } = route.params;
   const { cases, deleteCase, approveCase, revokeCaseApproval } = useCaseStore();
   const { procedures, fetchProcedures } = useProcedureStore();
-  const { userId } = useAuthStore();
+  const { userId, role } = useAuthStore();
   const [directory, setDirectory] = useState<Record<string, string>>({});
 
   const caseLog = cases.find((c) => c.id === caseId);
@@ -259,6 +259,18 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
           </TouchableOpacity>
         )}
 
+        {/* Edit — owner or admin */}
+        {(isOwner || role === 'admin') && (
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => navigation.navigate('EditCase', { caseId })}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="create-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.editBtnText}>Edit Case</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Delete — only the owner can remove a case */}
         {isOwner && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
@@ -322,6 +334,18 @@ const styles = StyleSheet.create({
   procFail: { backgroundColor: COLORS.errorLight },
   procBadgeText: { fontSize: FONT_SIZE.xs, fontWeight: '600', color: COLORS.text },
   meta: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, textAlign: 'center', marginBottom: SPACING.md },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm + 2,
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  editBtnText: { fontSize: FONT_SIZE.sm, color: COLORS.primary, fontWeight: '600' },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',

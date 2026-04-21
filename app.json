@@ -2,6 +2,7 @@
   "expo": {
     "name": "ICU Logbook",
     "slug": "icu-logbook",
+    "scheme": "iculogbook",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -12,8 +13,7 @@
     "android": {
       "package": "com.iculogbook.app"
     },
-    "web": {
-    },
+    "web": {},
     "plugins": [
       [
         "expo-sqlite",
@@ -23,7 +23,10 @@
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "sentry-expo"
     ]
   }
 }

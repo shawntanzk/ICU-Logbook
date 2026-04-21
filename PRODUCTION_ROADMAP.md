@@ -55,38 +55,38 @@ This document describes everything required to take ICU Logbook from the current
 | Competency heatmap | ✅ Working | All 12 CoBaTrICE domains |
 | AI summary (mock) | ✅ Working | Hardcoded template, ready for API |
 | Offline storage | ✅ Working | SQLite via expo-sqlite |
-| **Authentication** | ✅ Local-only | Email + password against a second SQLite file (`icu_logbook_server.db`). Salted + hashed passwords, 30-day session tokens in a `sessions` table. Restore-on-launch. |
-| **First-run admin setup** | ✅ Working | `FirstRunSetupScreen` forces creation of the initial admin when the server DB has zero users. Refuses to run once any user exists. |
-| **User management** | ✅ Working | Admin Panel: create / disable / role-toggle / reset-password / delete users. |
+| **Authentication** | ✅ Supabase | `supabase.auth` with AsyncStorage-persisted sessions, auto-refresh, password login. |
+| **First-run admin setup** | ✅ Working | `FirstRunSetupScreen` calls `supabase.auth.signUp`; the `handle_new_user` trigger auto-promotes the first profile to `admin`. |
+| **User management** | ✅ Partial | Admins can role-toggle and disable accounts from the app. Creating users, resetting passwords, and deleting users requires the Supabase dashboard (service-role only). |
 | **Role model** | ✅ Working | Two roles only: `admin` and `user`. Supervision/observation recorded per record. |
-| **Owner-scoped visibility** | ✅ Working | Every record has `owner_id`, `supervisor_user_id`, `observer_user_id`. SQL `WHERE` fragments in `AuthScope.ts` enforce: admin sees all; user sees own + supervised + observed. |
+| **Owner-scoped visibility** | ✅ Working | `AuthScope.ts` fragments locally; matching RLS policies on Supabase. Admin sees all; user sees own + supervised + observed. |
+| **Approval workflow** | ✅ Working | Tagged supervisor can approve / revoke. Changing the supervisor invalidates approval. External (off-system) supervisor names supported for display. |
+| **Edit records** | ✅ Working | Owner or admin edits cases and procedures via dedicated edit screens. |
 | Consent + FAIR exports | ✅ Working | Four-way consent; FHIR / openEHR / JSON-LD exports |
-| Sync button | ✅ Working | Simulates upload, marks records synced |
+| **Cloud sync** | ✅ Two-way | Push + pull against Supabase on every write and via *Sync Now*. Soft-delete tombstones propagate. Conflicts flagged with `conflict = 1` on the local row. |
+| **Offline-only mode** | ✅ Working | Settings toggle. Short-circuits all sync; no network calls. |
 
 ### What is mocked or missing
 
 | Feature | Current State | What is needed |
 |---|---|---|
-| Backend location | Auth and user tables live in a second **local** SQLite file; not a remote server | Migrate `AuthService.ts` to Supabase Auth + Postgres; replicate visibility as RLS policies |
-| Cloud sync | Simulated (marks records synced locally) | Real API calls to Supabase, preserving `owner_id` / `supervisor_user_id` / `observer_user_id` |
+| Admin user creation | Throws from the mobile client | Admin Edge Function (service-role) or stay on the Supabase dashboard |
+| Password reset / delete user | Throws from the mobile client | Same — admin Edge Function |
+| Conflict resolution UI | Conflicting rows are flagged; default is last-writer-wins | Dedicated UI to show conflicted rows and pick a winner |
 | Password policy | Minimum 6 chars, no complexity rules | Stronger policy, breach-password check, optional MFA |
-| Session security | Token cached in `app_settings`; no inactivity timeout | Expo SecureStore, 15-min inactivity auto-logout, biometric re-auth |
+| Session security | Supabase session in AsyncStorage | Move to Expo SecureStore, 15-min inactivity auto-logout, biometric re-auth |
 | Data export | FHIR / openEHR / JSON-LD exist; no PDF/CSV | PDF/CSV generation for ARCP panels |
-| Edit records | Not implemented | Edit form for existing cases |
 | Date input | Text field (YYYY-MM-DD) | Native date picker |
 | Notifications | Not implemented | Reminder to log daily/weekly |
-| Supervisor sign-off | Pickers capture who supervised/observed, but no approval state | Supervisor approval workflow with status (pending / approved / rejected) |
-| Encryption | None | At-rest encryption on both SQLite files |
+| Encryption | None | At-rest encryption on local SQLite |
 | Testing | None | Unit and integration tests |
 | App store | Not submitted | Icons, store listings, privacy policy |
 
 ---
 
-## 2. Phase 1 — Core Infrastructure (weeks 1–3)
+## 2. Phase 1 — Core Infrastructure (largely done)
 
-This phase must be completed before any real users can use the app.
-
-**Partial credit:** email/password auth, session management, user CRUD, and a first-run admin setup flow already work — against a **local** SQLite file. The Phase 1 work is therefore narrower than it originally was: migrate `AuthService.ts` from the local mock to real Supabase Auth, and carry `owner_id` / `supervisor_user_id` / `observer_user_id` through the sync payload.
+**Status:** the bulk of Phase 1 has landed. Supabase Auth, a Postgres schema mirroring local SQLite, RLS policies matching `AuthScope.ts`, two-way sync, soft deletes, approval workflow, and owner/admin edit are all in place. What remains is operational hardening — admin Edge Function, stronger session security, conflict-resolution UI, and encryption at rest.
 
 ---
 
@@ -151,7 +151,7 @@ The existing `LoginScreen.tsx` already collects email + password and calls throu
 
 ### 2.2 Real Cloud Backend (Supabase)
 
-**Why it matters:** The current mock client writes nothing to any server. Real sync requires a real database.
+**Status:** done. This section is retained as reference for self-hosted / alternative deployments.
 
 **How to set up Supabase:**
 
@@ -444,11 +444,11 @@ This phase is **mandatory before any real patient data is stored**, even de-iden
 
 ### 4.1 Data Encryption at Rest
 
-**Why it matters:** If a phone is lost or stolen, patient data (even de-identified) in an unencrypted database can be read by anyone with basic tools. This applies to **both** SQLite files — the local cache *and* the mock-server DB that currently holds password hashes.
+**Why it matters:** If a phone is lost or stolen, patient data (even de-identified) in an unencrypted database can be read by anyone with basic tools. This applies to the local SQLite cache.
 
 **What to implement:**
 
-Replace `expo-sqlite` with the encrypted variant (applies to both `icu_logbook.db` and `icu_logbook_server.db`, though the latter goes away once auth moves to Supabase):
+Replace `expo-sqlite` with the encrypted variant for `icu_logbook.db`:
 
 1. Update `app.json`:
    ```json

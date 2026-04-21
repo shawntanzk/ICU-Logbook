@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { ProcedureLog, ProcedureLogInput } from '../models/ProcedureLog';
 import { ProcedureService } from '../services/ProcedureService';
+import { SyncService } from '../services/SyncService';
+
+function triggerSync(): void {
+  void SyncService.syncPending().catch(() => {});
+}
 
 interface ProcedureStore {
   procedures: ProcedureLog[];
@@ -11,6 +16,7 @@ interface ProcedureStore {
 
   fetchProcedures: () => Promise<void>;
   addProcedure: (input: ProcedureLogInput) => Promise<ProcedureLog>;
+  updateProcedure: (id: string, input: Partial<ProcedureLogInput>) => Promise<void>;
   deleteProcedure: (id: string) => Promise<void>;
   approveProcedure: (id: string) => Promise<void>;
   revokeProcedureApproval: (id: string) => Promise<void>;
@@ -39,23 +45,34 @@ export const useProcedureStore = create<ProcedureStore>((set, get) => ({
     const proc = await ProcedureService.create(input);
     set((s) => ({ procedures: [proc, ...s.procedures] }));
     get().refreshStats();
+    triggerSync();
     return proc;
+  },
+
+  updateProcedure: async (id, input) => {
+    const updated = await ProcedureService.update(id, input);
+    set((s) => ({ procedures: s.procedures.map((p) => (p.id === id ? updated : p)) }));
+    get().refreshStats();
+    triggerSync();
   },
 
   deleteProcedure: async (id) => {
     await ProcedureService.delete(id);
     set((s) => ({ procedures: s.procedures.filter((p) => p.id !== id) }));
     get().refreshStats();
+    triggerSync();
   },
 
   approveProcedure: async (id) => {
     const updated = await ProcedureService.approve(id);
     set((s) => ({ procedures: s.procedures.map((p) => (p.id === id ? updated : p)) }));
+    triggerSync();
   },
 
   revokeProcedureApproval: async (id) => {
     const updated = await ProcedureService.revokeApproval(id);
     set((s) => ({ procedures: s.procedures.map((p) => (p.id === id ? updated : p)) }));
+    triggerSync();
   },
 
   refreshStats: async () => {

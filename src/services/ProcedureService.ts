@@ -85,7 +85,7 @@ class ProcedureServiceImpl implements IDataService<ProcedureLog, ProcedureLogInp
     const db = await getDatabase();
     const scope = procedureScopedWhere();
     const rows = await db.getAllAsync<ProcedureRow>(
-      `SELECT * FROM procedure_logs WHERE ${scope.clause} ORDER BY created_at DESC`,
+      `SELECT * FROM procedure_logs WHERE deleted_at IS NULL AND ${scope.clause} ORDER BY created_at DESC`,
       scope.params
     );
     return rows.map(rowToModel);
@@ -95,7 +95,7 @@ class ProcedureServiceImpl implements IDataService<ProcedureLog, ProcedureLogInp
     const db = await getDatabase();
     const scope = procedureScopedWhere();
     const row = await db.getFirstAsync<ProcedureRow>(
-      `SELECT * FROM procedure_logs WHERE id = ? AND ${scope.clause}`,
+      `SELECT * FROM procedure_logs WHERE id = ? AND deleted_at IS NULL AND ${scope.clause}`,
       [id, ...scope.params]
     );
     return row ? rowToModel(row) : null;
@@ -105,7 +105,7 @@ class ProcedureServiceImpl implements IDataService<ProcedureLog, ProcedureLogInp
     const db = await getDatabase();
     const scope = procedureScopedWhere();
     const rows = await db.getAllAsync<ProcedureRow>(
-      `SELECT * FROM procedure_logs WHERE case_id = ? AND ${scope.clause} ORDER BY created_at DESC`,
+      `SELECT * FROM procedure_logs WHERE case_id = ? AND deleted_at IS NULL AND ${scope.clause} ORDER BY created_at DESC`,
       [caseId, ...scope.params]
     );
     return rows.map(rowToModel);
@@ -262,14 +262,18 @@ class ProcedureServiceImpl implements IDataService<ProcedureLog, ProcedureLogInp
 
   async delete(id: string): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync('DELETE FROM procedure_logs WHERE id = ?', [id]);
+    const now = nowISO();
+    await db.runAsync(
+      'UPDATE procedure_logs SET deleted_at = ?, updated_at = ?, synced = 0 WHERE id = ?',
+      [now, now, id]
+    );
   }
 
   async getSuccessRate(): Promise<number> {
     const db = await getDatabase();
     const scope = procedureScopedWhere();
     const row = await db.getFirstAsync<{ total: number; successful: number }>(
-      `SELECT COUNT(*) as total, SUM(success) as successful FROM procedure_logs WHERE ${scope.clause}`,
+      `SELECT COUNT(*) as total, SUM(success) as successful FROM procedure_logs WHERE deleted_at IS NULL AND ${scope.clause}`,
       scope.params
     );
     if (!row || row.total === 0) return 0;
@@ -280,7 +284,7 @@ class ProcedureServiceImpl implements IDataService<ProcedureLog, ProcedureLogInp
     const db = await getDatabase();
     const scope = procedureScopedWhere();
     const rows = await db.getAllAsync<{ procedure_type: string; count: number }>(
-      `SELECT procedure_type, COUNT(*) as count FROM procedure_logs WHERE ${scope.clause} GROUP BY procedure_type`,
+      `SELECT procedure_type, COUNT(*) as count FROM procedure_logs WHERE deleted_at IS NULL AND ${scope.clause} GROUP BY procedure_type`,
       scope.params
     );
     return Object.fromEntries(

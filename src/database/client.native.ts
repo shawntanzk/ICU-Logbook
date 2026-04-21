@@ -19,3 +19,16 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 export async function initializeDatabase(): Promise<void> {
   await getDatabase();
 }
+
+// Wipes every user-data row from the local cache. Keeps schema and
+// schema_version intact so the next login doesn't re-run migrations or
+// hit an empty-DB code path. Use for "delete my account" and the
+// debug "clear all data" action.
+export async function wipeLocalData(): Promise<void> {
+  const db = await getDatabase();
+  await db.execAsync(`
+    DELETE FROM case_logs;
+    DELETE FROM procedure_logs;
+    DELETE FROM app_settings;
+  `);
+}

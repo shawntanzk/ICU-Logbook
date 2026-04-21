@@ -126,19 +126,23 @@ export function AdminPanelScreen() {
   }
 
   function handleResetPassword(u: ManagedUser) {
-    // React Native's built-in Alert.prompt only exists on iOS; for cross-platform
-    // demo simplicity we reset to a fixed temporary password and surface it.
+    // Server-side Edge Function sends a Supabase recovery email to the
+    // user's address — the admin never sees the password. This avoids
+    // the plaintext-over-chat anti-pattern the old flow encouraged.
     Alert.alert(
-      'Reset password',
-      `Reset ${u.displayName}'s password to a temporary one?`,
+      'Send password reset email',
+      `Send a password-reset link to ${u.email}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Send',
           onPress: async () => {
-            const temp = 'temp' + Math.floor(Math.random() * 10000);
-            await resetUserPassword(u.id, temp);
-            Alert.alert('Temporary password', `${u.email}\n\nNew password: ${temp}\n\nShare securely, user should change on next sign-in.`);
+            try {
+              await resetUserPassword(u.id, '');
+              Alert.alert('Email sent', `${u.email} will receive a reset link.`);
+            } catch (e) {
+              Alert.alert('Could not send reset', e instanceof Error ? e.message : String(e));
+            }
           },
         },
       ]

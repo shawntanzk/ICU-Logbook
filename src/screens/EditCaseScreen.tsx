@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ScrollView,
   Alert,
@@ -21,51 +21,77 @@ import { UserPicker } from '../components/UserPicker';
 import { listUsers, ManagedUser } from '../services/AuthService';
 import {
   COLORS,
+  FONT_SIZE,
   SPACING,
   ORGAN_SYSTEMS,
   COBATRICE_DOMAINS,
   SUPERVISION_LEVELS,
 } from '../utils/constants';
-import { todayISO } from '../utils/dateUtils';
+import type { CasesStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof CaseLogInput, string>>;
 
-const EMPTY_FORM: CaseLogInput = {
-  date: todayISO(),
-  diagnosis: '',
-  icd10Code: '',
-  organSystems: [],
-  cobatriceDomains: [],
-  supervisionLevel: 'supervised',
-  supervisorUserId: null,
-  observerUserId: null,
-  externalSupervisorName: null,
-  reflection: '',
-};
-
-export function AddCaseScreen() {
-  const { addCase } = useCaseStore();
-  const { userId } = useAuthStore();
+// Edit-mode counterpart to AddCaseScreen. Visibility is gated by the
+// caller (CaseDetailScreen) — only the owner or an admin sees the entry
+// point. The screen itself trusts that gate.
+export function EditCaseScreen({ route, navigation }: CasesStackProps<'EditCase'>) {
+  const { caseId } = route.params;
+  const { cases, updateCase } = useCaseStore();
+  const { userId, role } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
+
+  const existing = useMemo(() => cases.find((c) => c.id === caseId), [cases, caseId]);
 
   useEffect(() => {
     listUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
-  // Don't offer the current user as their own supervisor/observer.
   const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
 
-  const [form, setForm] = useState<CaseLogInput>(EMPTY_FORM);
+  const [form, setForm] = useState<CaseLogInput | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!existing) return;
+    setForm({
+      date: existing.date,
+      diagnosis: existing.diagnosis,
+      icd10Code: existing.icd10Code ?? '',
+      organSystems: existing.organSystems,
+      cobatriceDomains: existing.cobatriceDomains,
+      supervisionLevel: existing.supervisionLevel,
+      supervisorUserId: existing.supervisorUserId ?? null,
+      observerUserId: existing.observerUserId ?? null,
+      externalSupervisorName: existing.externalSupervisorName ?? null,
+      reflection: existing.reflection ?? '',
+    });
+  }, [existing]);
+
+  if (!existing || !form) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={styles.notFound}>Case not found.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const canEdit = existing.ownerId === userId || role === 'admin';
+  if (!canEdit) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={styles.notFound}>You can only edit cases you logged.</Text>
+      </SafeAreaView>
+    );
+  }
+
   function update<K extends keyof CaseLogInput>(key: K, value: CaseLogInput[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    // Clear error on change
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
   async function handleSubmit() {
+    if (!form) return;
     const result = CaseLogSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
@@ -76,15 +102,14 @@ export function AddCaseScreen() {
       setErrors(fieldErrors);
       return;
     }
-
     setLoading(true);
     try {
-      await addCase(result.data);
-      setForm({ ...EMPTY_FORM, date: todayISO() });
-      setErrors({});
-      Alert.alert('Case Logged', 'Your case has been saved successfully.');
+      await updateCase(caseId, result.data);
+      Alert.alert('Saved', 'Your case has been updated.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
     } catch (e) {
-      Alert.alert('Error', 'Failed to save case. Please try again.');
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save.');
     } finally {
       setLoading(false);
     }
@@ -103,69 +128,33 @@ export function AddCaseScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Date */}
           <DateField
             label="Date"
             value={form.date}
             onChange={(v) => update('date', v)}
             maxDate={new Date()}
           />
-          {errors.date ? <Text style={styles.inlineError}>{errors.date}</Text> : null}
-
-          {/* Diagnosis */}
-          <FormField
-            label="Primary Diagnosis"
-            required
-            placeholder="e.g. Septic shock secondary to pneumonia"
-            value={form.diagnosis}
-            onChangeText={(v) => update('diagnosis', v)}
-            error={errors.diagnosis}
+          {errors.date ? <Text style={editStyles.inlineError}>{errors.date}</Text> : null}
+          <FormField label="Primary Diagnosis" required
+            value={form.diagnosis} onChangeText={(v) => update('diagnosis', v)} error={errors.diagnosis}
             autoCapitalize="sentences"
           />
-
-          {/* ICD-10 — autocomplete shows "<label> [CODE]", saves code only */}
-          <ICD10Autocomplete
-            label="ICD-10 Code"
-            value={form.icd10Code ?? ''}
-            onChange={(v) => update('icd10Code', v)}
-            error={errors.icd10Code}
+          <ICD10Autocomplete label="ICD-10 Code" value={form.icd10Code ?? ''}
+            onChange={(v) => update('icd10Code', v)} error={errors.icd10Code}
             hint="Start typing a diagnosis or code"
           />
-
-          {/* Organ Systems */}
-          <MultiSelect
-            label="Organ Systems Involved"
-            required
-            options={ORGAN_SYSTEMS}
-            selected={form.organSystems}
-            onChange={(v) => update('organSystems', v)}
-            error={errors.organSystems}
+          <MultiSelect label="Organ Systems Involved" required options={ORGAN_SYSTEMS}
+            selected={form.organSystems} onChange={(v) => update('organSystems', v)} error={errors.organSystems}
           />
-
-          {/* CoBaTrICE Domains */}
-          <MultiSelect
-            label="CoBaTrICE Domains"
-            required
-            options={COBATRICE_DOMAINS}
-            selected={form.cobatriceDomains}
-            onChange={(v) => update('cobatriceDomains', v)}
-            error={errors.cobatriceDomains}
+          <MultiSelect label="CoBaTrICE Domains" required options={COBATRICE_DOMAINS}
+            selected={form.cobatriceDomains} onChange={(v) => update('cobatriceDomains', v)} error={errors.cobatriceDomains}
           />
-
-          {/* Supervision Level */}
-          <RadioGroup
-            label="Supervision Level"
-            required
-            options={SUPERVISION_LEVELS}
+          <RadioGroup label="Supervision Level" required options={SUPERVISION_LEVELS}
             value={form.supervisionLevel}
             onChange={(v) => update('supervisionLevel', v as CaseLogInput['supervisionLevel'])}
             error={errors.supervisionLevel}
           />
-
-          {/* Supervised by — visible to chosen user as well as the owner */}
-          <UserPicker
-            label="Supervised by"
-            users={otherUsers}
+          <UserPicker label="Supervised by" users={otherUsers}
             value={form.supervisorUserId ?? null}
             onChange={(v) => {
               update('supervisorUserId', v);
@@ -173,11 +162,7 @@ export function AddCaseScreen() {
             }}
             placeholder="None"
           />
-
-          {/* External supervisor name — for supervisors who don't have
-              an account. Mutually exclusive with the picker above. */}
-          <FormField
-            label="Supervisor not on system"
+          <FormField label="Supervisor not on system"
             placeholder="Type a name (optional)"
             value={form.externalSupervisorName ?? ''}
             onChangeText={(v) => {
@@ -185,33 +170,19 @@ export function AddCaseScreen() {
               update('externalSupervisorName', trimmed);
               if (trimmed) update('supervisorUserId', null);
             }}
-            hint="Use only when the supervisor has no account. Cases with an off-system supervisor cannot be approved."
+            hint="Changing supervisors clears any prior approval."
             autoCapitalize="words"
           />
-
-          {/* Observed by — same visibility rules as supervisor */}
-          <UserPicker
-            label="Observed by"
-            users={otherUsers}
+          <UserPicker label="Observed by" users={otherUsers}
             value={form.observerUserId ?? null}
             onChange={(v) => update('observerUserId', v)}
             placeholder="None"
           />
-
-          {/* Reflection */}
-          <FormField
-            label="Reflection"
-            placeholder="What did you learn? What would you do differently?"
-            value={form.reflection ?? ''}
-            onChangeText={(v) => update('reflection', v)}
-            error={errors.reflection}
-            multiline
-            numberOfLines={4}
-            style={styles.textarea}
-            textAlignVertical="top"
+          <FormField label="Reflection" value={form.reflection ?? ''}
+            onChangeText={(v) => update('reflection', v)} error={errors.reflection}
+            multiline numberOfLines={4} style={styles.textarea} textAlignVertical="top"
           />
-
-          <Button label="Save Case" onPress={handleSubmit} loading={loading} style={styles.submit} />
+          <Button label="Save Changes" onPress={handleSubmit} loading={loading} style={styles.submit} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -224,5 +195,9 @@ const styles = StyleSheet.create({
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   textarea: { minHeight: 100 },
   submit: { marginTop: SPACING.sm },
+  notFound: { textAlign: 'center', marginTop: SPACING.xxl, color: COLORS.textMuted, fontSize: FONT_SIZE.sm },
+});
+
+const editStyles = StyleSheet.create({
   inlineError: { color: COLORS.error, fontSize: 12, marginTop: 4, marginBottom: SPACING.sm },
 });

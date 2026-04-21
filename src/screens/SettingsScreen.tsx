@@ -1,5 +1,13 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Switch } from 'react-native';
+import {
+  listIdentities,
+  linkGoogleIdentity,
+  unlinkGoogleIdentity,
+  deleteOwnAccount,
+  LinkedIdentity,
+} from '../services/AuthService';
+import { wipeLocalData } from '../database/client';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSyncStore } from '../store/syncStore';
@@ -7,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 import { useCaseStore } from '../store/caseStore';
 import { useProcedureStore } from '../store/procedureStore';
 import { useConsentStore } from '../store/consentStore';
+import { useOfflineStore } from '../store/offlineStore';
 import { Card } from '../components/Card';
 import { COLORS, FONT_SIZE, SPACING, RADIUS } from '../utils/constants';
 import { formatDateTime } from '../utils/dateUtils';
@@ -82,10 +91,76 @@ export function SettingsScreen({ navigation }: Props) {
   const { isSyncing, status, lastResult, error, sync, refreshStatus } = useSyncStore();
   const { userName, role, logout } = useAuthStore();
   const consentStatus = useConsentStore((s) => s.status);
+  const { offlineOnly, setOfflineOnly } = useOfflineStore();
+
+  const [identities, setIdentities] = useState<LinkedIdentity[]>([]);
+  const [identityBusy, setIdentityBusy] = useState(false);
+
+  const refreshIdentities = useCallback(async () => {
+    try {
+      const rows = await listIdentities();
+      setIdentities(rows);
+    } catch {
+      // Non-fatal: identities are a nice-to-have in Settings.
+    }
+  }, []);
 
   useEffect(() => {
     refreshStatus();
-  }, []);
+    refreshIdentities();
+  }, [refreshIdentities]);
+
+  const googleLinked = identities.some((i) => i.provider === 'google');
+  const hasEmail = identities.some((i) => i.provider === 'email');
+
+  async function handleLinkGoogle() {
+    setIdentityBusy(true);
+    try {
+      const result = await linkGoogleIdentity();
+      if (!result.ok) {
+        if (!result.cancelled) Alert.alert('Could not link Google', result.error ?? 'Unknown error.');
+        return;
+      }
+      Alert.alert('Google linked', 'You can now sign in with Google on any device.');
+      await refreshIdentities();
+    } finally {
+      setIdentityBusy(false);
+    }
+  }
+
+  function handleUnlinkGoogle() {
+    if (!hasEmail) {
+      Alert.alert(
+        'Set a password first',
+        'Google is currently your only sign-in method. Add a password before unlinking so you don\'t lose access to this account.'
+      );
+      return;
+    }
+    Alert.alert(
+      'Unlink Google?',
+      'You\'ll still be able to sign in with your email and password.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unlink',
+          style: 'destructive',
+          onPress: async () => {
+            setIdentityBusy(true);
+            try {
+              const result = await unlinkGoogleIdentity();
+              if (!result.ok) {
+                Alert.alert('Could not unlink Google', result.error ?? 'Unknown error.');
+                return;
+              }
+              await refreshIdentities();
+            } finally {
+              setIdentityBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   async function handleSync() {
     await sync();
@@ -107,15 +182,46 @@ export function SettingsScreen({ navigation }: Props) {
     ]);
   }
 
-  function handleClearData() {
-    Alert.alert('Clear All Data', 'This permanently deletes all local data. This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear All',
-        style: 'destructive',
-        onPress: () => Alert.alert('Not implemented', 'Data clearing will be added in a future release.'),
-      },
-    ]);
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete account',
+      'Permanently delete your account, every case and procedure you own on this device, and every copy on the server. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete everything',
+          style: 'destructive',
+          onPress: () => {
+            // Two-step to discourage accidental taps.
+            Alert.alert(
+              'Final confirmation',
+              'Type DELETE on paper first if you need to. There is no undo.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'I understand — delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    const result = await deleteOwnAccount();
+                    if (!result.ok) {
+                      Alert.alert('Could not delete account', result.error ?? 'Unknown error.');
+                      return;
+                    }
+                    try {
+                      await wipeLocalData();
+                    } catch {
+                      // Server delete already succeeded; a local residue
+                      // will be cleared on next launch by the auth guard.
+                    }
+                    await logout();
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   }
 
   function handleExport() {
@@ -155,24 +261,38 @@ export function SettingsScreen({ navigation }: Props) {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Cloud Sync</Text>
 
+          {/* Offline-only toggle. When on, the app never talks to
+              Supabase — local logbook only, no cross-device sync. */}
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleLabelWrap}>
+              <Text style={styles.toggleLabel}>Offline-only mode</Text>
+              <Text style={styles.toggleHint}>
+                When on, nothing leaves this device. Logs stay local and won't appear in the web app.
+              </Text>
+            </View>
+            <Switch value={offlineOnly} onValueChange={(v) => setOfflineOnly(v)} />
+          </View>
+
           {/* Status row */}
           <View style={styles.syncStatusRow}>
             <View style={styles.syncStatusLeft}>
               <Text style={styles.syncStatusLabel}>
-                {status.pendingCount > 0
-                  ? `${status.pendingCount} record${status.pendingCount !== 1 ? 's' : ''} pending upload`
-                  : 'All data synced'}
+                {offlineOnly
+                  ? 'Sync disabled (offline-only mode)'
+                  : status.pendingCount > 0
+                    ? `${status.pendingCount} record${status.pendingCount !== 1 ? 's' : ''} pending upload`
+                    : 'All data synced'}
               </Text>
-              {status.lastSyncedAt && (
+              {status.lastSyncedAt && !offlineOnly && (
                 <Text style={styles.syncStatusSub}>Last synced {formatDateTime(status.lastSyncedAt)}</Text>
               )}
             </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
+            style={[styles.syncBtn, (isSyncing || offlineOnly) && styles.syncBtnDisabled]}
             onPress={handleSync}
-            disabled={isSyncing}
+            disabled={isSyncing || offlineOnly}
             activeOpacity={0.8}
           >
             {isSyncing ? (
@@ -186,9 +306,21 @@ export function SettingsScreen({ navigation }: Props) {
           <View style={styles.syncNote}>
             <Ionicons name="information-circle-outline" size={13} color={COLORS.textMuted} />
             <Text style={styles.syncNoteText}>
-              Using mock Supabase client. See SETUP.md to connect a real backend.
+              Two-way sync with Supabase. Conflicting edits keep your local copy and flag the row for manual review.
             </Text>
           </View>
+
+          <SettingRow
+            icon={status.conflictCount > 0 ? 'warning-outline' : 'git-compare-outline'}
+            label="Sync conflicts"
+            value={
+              status.conflictCount > 0
+                ? `${status.conflictCount} to review`
+                : 'None'
+            }
+            onPress={() => navigation.navigate('Conflicts')}
+            destructive={status.conflictCount > 0}
+          />
         </Card>
 
         {/* Data summary */}
@@ -216,7 +348,45 @@ export function SettingsScreen({ navigation }: Props) {
             label="Export (FHIR / openEHR / JSON-LD)"
             onPress={handleExport}
           />
-          <SettingRow icon="trash-outline" label="Clear All Data" onPress={handleClearData} destructive />
+          <SettingRow
+            icon="trash-outline"
+            label="Delete my account"
+            onPress={handleDeleteAccount}
+            destructive
+          />
+        </Card>
+
+        {/* Sign-in methods — link / unlink Google (Supabase identity linking) */}
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Sign-in Methods</Text>
+
+          <SettingRow
+            icon="mail-outline"
+            label="Email & Password"
+            value={hasEmail ? 'Linked' : 'Not linked'}
+          />
+
+          <SettingRow
+            icon="logo-google"
+            label={googleLinked ? 'Google — unlink' : 'Link Google account'}
+            value={googleLinked ? 'Linked' : undefined}
+            onPress={googleLinked ? handleUnlinkGoogle : handleLinkGoogle}
+            loading={identityBusy}
+            destructive={googleLinked}
+          />
+
+          <SettingRow
+            icon="key-outline"
+            label="Change password"
+            onPress={() => navigation.navigate('ChangePassword')}
+          />
+
+          <View style={styles.syncNote}>
+            <Ionicons name="information-circle-outline" size={13} color={COLORS.textMuted} />
+            <Text style={styles.syncNoteText}>
+              Linking Google lets you sign into this same account with either method. You can link or unlink at any time.
+            </Text>
+          </View>
         </Card>
 
         {/* Admin — only visible to admins */}
@@ -236,7 +406,7 @@ export function SettingsScreen({ navigation }: Props) {
           <Text style={styles.sectionTitle}>About</Text>
           <SettingRow icon="school-outline" label="CoBaTrICE Framework" value="12 Domains" />
           <SettingRow icon="shield-checkmark-outline" label="Storage" value="Local SQLite" />
-          <SettingRow icon="cloud-outline" label="Backend" value="Supabase (mock)" />
+          <SettingRow icon="cloud-outline" label="Backend" value="Supabase" />
           <SettingRow icon="code-slash-outline" label="Built with" value="React Native · Expo" />
         </Card>
 
@@ -296,6 +466,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  toggleLabelWrap: { flex: 1 },
+  toggleLabel: { fontSize: FONT_SIZE.md, color: COLORS.text, fontWeight: '500' },
+  toggleHint: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
   syncStatusRow: { marginBottom: SPACING.md },
   syncStatusLeft: { flex: 1 },
   syncStatusLabel: { fontSize: FONT_SIZE.md, color: COLORS.text, fontWeight: '500' },

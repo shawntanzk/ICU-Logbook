@@ -3,10 +3,13 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initializeDatabase } from './src/database/client';
-import { initializeServerDatabase } from './src/database/serverClient';
+import { useOfflineStore } from './src/store/offlineStore';
+import { useTermsStore } from './src/store/termsStore';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { useConsentStore } from './src/store/consentStore';
 import { useAuthStore } from './src/store/authStore';
+import { initNetworkTracking } from './src/store/networkStore';
+import { initErrorReporting } from './src/services/errorReporting';
 import { COLORS, FONT_SIZE } from './src/utils/constants';
 
 type AppState = 'loading' | 'ready' | 'error';
@@ -16,9 +19,15 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    Promise.all([initializeDatabase(), initializeServerDatabase()])
+    // Sentry first so we capture any later init failures.
+    initErrorReporting();
+    const unsubscribeNet = initNetworkTracking();
+
+    initializeDatabase()
       .then(() => Promise.all([
         useConsentStore.getState().hydrate(),
+        useOfflineStore.getState().hydrate(),
+        useTermsStore.getState().hydrate(),
         useAuthStore.getState().restore(),
       ]))
       .then(() => setState('ready'))
@@ -27,6 +36,10 @@ export default function App() {
         setErrorMessage(String(err));
         setState('error');
       });
+
+    return () => {
+      unsubscribeNet();
+    };
   }, []);
 
   if (state === 'loading') {

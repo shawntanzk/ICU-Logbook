@@ -21,6 +21,7 @@ export interface SyncResult {
 export interface SyncStatus {
   lastSyncedAt: string | null; // ISO string
   pendingCount: number;
+  conflictCount: number;
 }
 
 export interface ISyncService {

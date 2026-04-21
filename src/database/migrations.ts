@@ -133,6 +133,39 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
       `INSERT OR IGNORE INTO schema_version (version) VALUES (6)`,
     ],
   },
+  {
+    // v7 — sync bookkeeping. server_updated_at caches the last server
+    // timestamp we saw, used to detect stale-local writes. deleted_at
+    // is a soft-delete tombstone so a local delete syncs up without
+    // confusing a conflicting remote edit. conflict is 1 when a push
+    // was rejected; the UI surfaces these for manual resolution.
+    version: 7,
+    statements: [
+      `ALTER TABLE case_logs ADD COLUMN server_updated_at TEXT`,
+      `ALTER TABLE case_logs ADD COLUMN deleted_at TEXT`,
+      `ALTER TABLE case_logs ADD COLUMN conflict INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE procedure_logs ADD COLUMN server_updated_at TEXT`,
+      `ALTER TABLE procedure_logs ADD COLUMN deleted_at TEXT`,
+      `ALTER TABLE procedure_logs ADD COLUMN conflict INTEGER NOT NULL DEFAULT 0`,
+      `INSERT OR IGNORE INTO schema_version (version) VALUES (7)`,
+    ],
+  },
+  {
+    // v8 — push retry bookkeeping. A non-conflict sync error increments
+    // sync_retry_count; SyncService skips rows that exceed MAX_RETRIES
+    // so one failing row doesn't wedge the whole queue. sync_last_error
+    // is surfaced in the Conflicts UI for debugging.
+    version: 8,
+    statements: [
+      `ALTER TABLE case_logs ADD COLUMN sync_retry_count INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE case_logs ADD COLUMN sync_last_error TEXT`,
+      `ALTER TABLE procedure_logs ADD COLUMN sync_retry_count INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE procedure_logs ADD COLUMN sync_last_error TEXT`,
+      `CREATE INDEX IF NOT EXISTS idx_case_logs_sync ON case_logs(synced, conflict)`,
+      `CREATE INDEX IF NOT EXISTS idx_procedure_logs_sync ON procedure_logs(synced, conflict)`,
+      `INSERT OR IGNORE INTO schema_version (version) VALUES (8)`,
+    ],
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

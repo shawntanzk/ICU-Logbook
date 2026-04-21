@@ -96,7 +96,7 @@ function ProcedureItem({
 export function ProcedureListScreen({ navigation }: ProceduresStackProps<'ProcedureList'>) {
   const { procedures, isLoading, fetchProcedures, approveProcedure, revokeProcedureApproval } =
     useProcedureStore();
-  const { userId } = useAuthStore();
+  const { userId, role } = useAuthStore();
 
   async function handleApprove(id: string) {
     try {
@@ -142,7 +142,10 @@ export function ProcedureListScreen({ navigation }: ProceduresStackProps<'Proced
             item={item}
             directory={directory}
             currentUserId={userId}
-            onPress={() => navigation.navigate('AddProcedure', {})}
+            onPress={() => {
+              const canEdit = item.ownerId === userId || role === 'admin';
+              if (canEdit) navigation.navigate('EditProcedure', { procedureId: item.id });
+            }}
             onApprove={handleApprove}
             onRevoke={handleRevoke}
           />

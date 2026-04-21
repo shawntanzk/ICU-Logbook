@@ -3,8 +3,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 // ─── Root (auth gate) ─────────────────────────────────────────────────────────
 export type RootStackParamList = {
   Login: undefined;
-  Setup: undefined;
   Consent: undefined;
+  Terms: undefined;
   Main: undefined;
 };
 
@@ -18,12 +18,14 @@ export type DashboardStackParamList = {
 export type CasesStackParamList = {
   CaseList: undefined;
   CaseDetail: { caseId: string };
+  EditCase: { caseId: string };
 };
 
 // ─── Stack inside Procedures tab ─────────────────────────────────────────────
 export type ProceduresStackParamList = {
   ProcedureList: undefined;
   AddProcedure: { caseId?: string };
+  EditProcedure: { procedureId: string };
 };
 
 // ─── Bottom tab navigator ─────────────────────────────────────────────────────
@@ -41,6 +43,9 @@ export type SettingsStackParamList = {
   Consent: undefined;
   Export: undefined;
   AdminPanel: undefined;
+  ChangePassword: undefined;
+  Conflicts: undefined;
+  Terms: undefined;
 };
 
 // ─── Convenience prop types ───────────────────────────────────────────────────

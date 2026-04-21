@@ -30,7 +30,7 @@ ICU Logbook is a mobile application that replaces paper-based clinical logbooks 
 
 Trainees log each case they manage and each procedure they perform. The app automatically maps these to the **CoBaTrICE framework** — a European standard for ICU competency — giving trainees and supervisors a real-time view of progress across 12 clinical domains.
 
-All data is stored **on the device** first (offline-first). A sync button uploads records to a backend when connectivity is available. The app is designed as a pilot prototype ready for real user testing.
+All data is stored **on the device** first (offline-first). The app two-way-syncs with **Supabase** (auth + Postgres) whenever the device is online — or users can toggle **Offline-only mode** in Settings to opt out of cloud sync entirely. The app is designed as a pilot prototype ready for real user testing.
 
 ---
 
@@ -41,7 +41,7 @@ The app has two account types:
 | Role | What they can do |
 |---|---|
 | **User** (ICU doctor / trainee / fellow / consultant) | Logs their own cases and procedures. Sees anything they own, *or* where they are listed as the supervisor / observer on someone else's record. Writes reflections, tracks their own competency. |
-| **Admin** | All of the above, plus: sees every record on the mock server regardless of owner, manages user accounts (create, disable, reset password, toggle role) from the Admin Panel. |
+| **Admin** | All of the above, plus: sees every record regardless of owner, toggles user roles and disables accounts from the Admin Panel. Creating/deleting users and resetting passwords requires the Supabase dashboard (service-role privileges don't ship with the mobile client). |
 
 There is no separate "supervisor" or "trainee" role — supervision and observation are recorded **per record** via user pickers, not as account-level roles. A user can supervise one case and be supervised on another without any admin configuration.
 
@@ -51,19 +51,21 @@ There is no separate "supervisor" or "trainee" role — supervision and observat
 
 ### Implemented in this MVP
 
-- **First-run setup** — on first launch (or after a data wipe), if the server database has zero accounts the app forces the creation of an initial **admin** account (email + display name + password) and signs them in immediately. No account is seeded in code.
-- **Login screen** — email + password against the mock server DB. Sessions are backed by a server-side `sessions` table (30-day expiry) with the active token cached locally.
-- **Admin Panel** (Settings → Admin Panel) — admins can create users, toggle role between `admin` and `user`, disable accounts, reset passwords, and delete users.
+- **Login screen** — email + password sign-in, **self-service signup** (email + display name + password), or **Continue with Google** (Supabase OAuth via PKCE + in-app browser). Sessions are persisted via AsyncStorage and refreshed in the background by the Supabase client.
+- **Admin promotion from dashboard** — all new accounts start as role `user`. The `handle_new_user` Postgres trigger creates the matching `profiles` row on signup; flip `role` to `admin` from the Supabase dashboard.
+- **Admin Panel** (Settings → Admin Panel) — admins can toggle role between `admin` and `user` and disable accounts. Creating / deleting users and resetting passwords happens from the Supabase dashboard (or a future admin Edge Function).
 - **Case Log** — full form with date, diagnosis, ICD-10 code, organ systems, CoBaTrICE domains, supervision level, reflection, and **Supervised by / Observed by** user pickers that attach two other users to the record.
 - **Procedure Log** — procedure type, attempts, success/fail outcome, complications, optional link to a case, plus the same **Supervised by / Observed by** pickers.
 - **Owner-scoped visibility** — every record carries an `owner_id`. Users see only records they own, supervised, or observed. Admins see every record. All queries enforce this server-side via a SQL `WHERE` fragment.
 - **Dashboard** — stat cards (total cases, this month, procedures, success rate, domains covered), competency dot grid, domain coverage bars, recent cases. Admins see a "Administrator · all records" subtitle and a shield badge.
 - **Competency Heatmap** — 3×4 grid of all 12 CoBaTrICE domains, colour-coded by case count (grey → light blue → medium blue → primary blue).
 - **Case List** — searchable, filterable list of visible cases with an **owner** badge and a "You supervised" / "You observed" pill when the record isn't yours. Tap any case to view full details.
-- **Case Detail** — full case view with owner / supervisor / observer rows (resolved to display names), linked procedures, sync status, AI summary button, and a delete button shown **only to the owner**.
+- **Case Detail** — full case view with owner / supervisor / observer rows (resolved to display names), linked procedures, sync status, AI summary button, and **Edit** + **Delete** buttons shown to the owner (or admin). Supervisors tagged on the case see **Approve** / **Revoke approval**.
+- **Edit Case / Edit Procedure** — owner and admin can revise any field. Changing the tagged supervisor clears any existing approval so it can't silently carry over a rewritten case.
 - **Procedure List** — same owner badge + relation pill as the case list.
 - **AI Summary** (mock) — generates a context-aware plain-English summary of any case from its data fields. Ready to connect to a real AI API.
-- **Sync** — sync button in Settings shows real pending count, uploads to a mock Supabase client, marks records synced, shows last sync time.
+- **Two-way Supabase sync** — pushes unsynced local rows and pulls remote changes on every write and whenever the user taps *Sync Now*. Soft deletes (tombstones) propagate; conflicting edits flag the row for manual resolution instead of silently overwriting.
+- **Offline-only mode** — a Settings toggle that short-circuits sync entirely. Nothing leaves the device. Useful for trainees who want a pure local logbook with no cloud footprint.
 - **Offline-first** — all data saved locally to SQLite before any network call.
 - **Semantic coding** — every case and procedure is silently bound to SNOMED CT, ICD-10, CoBaTrICE, and Ottawa EPA codes at save-time. The UX doesn't change; the data underneath becomes machine-readable.
 - **Data-sharing consent** — four-way consent model (private / anonymous aggregate / research / commercial). **Default is commercial** (fully-anonymised, opt-out); users can downgrade at any time in Settings.
@@ -73,11 +75,11 @@ There is no separate "supervisor" or "trainee" role — supervision and observat
 
 ### Not yet implemented (see [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md))
 
-- Real cloud backend (current auth/user store is a second SQLite file standing in for the server)
+- Admin user creation / password reset / deletion from the mobile client (Supabase dashboard only for now)
+- Dedicated conflict-resolution UI (conflicts are flagged per-row but resolution is currently last-writer-wins)
 - PDF/CSV export
 - Push notifications
 - Date picker UI
-- Edit existing cases
 - Supervisor countersign / approval workflow (pickers record who supervised; there's no approval state yet)
 
 ---
@@ -86,11 +88,13 @@ There is no separate "supervisor" or "trainee" role — supervision and observat
 
 > The app uses a bottom tab bar with five tabs: **Dashboard**, **Cases**, **Add Case**, **Procedures**, and **Settings**.
 
-### First-Run Setup Screen
-Only shown when the server database has zero accounts (fresh install, or after erasing app data). Enter an email, display name, and password (min 6 chars), confirm the password, and tap **Create Admin & Sign In**. The form refuses to run if any user already exists, so it can't be used to bypass the Admin Panel.
-
 ### Login Screen
-Shown on every subsequent launch while signed out. Enter your email + password and tap **Sign In**. Wrong credentials show inline errors from the auth service ("No account with that email.", "Incorrect password.", "This account has been disabled."). Sessions are 30-day server-side tokens cached locally; closing the app keeps you signed in.
+Shown on every launch while signed out. Three paths:
+- **Sign In** — email + password against Supabase Auth.
+- **Create Account** — toggle to self-signup (name + email + password). If the Supabase project requires email confirmation, the app prompts the user to check their inbox and returns to the sign-in view.
+- **Continue with Google** — opens Google OAuth in an in-app browser, catches the `iculogbook://auth-callback` redirect, and exchanges the code for a session on-device (PKCE, no server needed).
+
+Wrong credentials show inline errors from Supabase ("Invalid login credentials", "This account has been disabled."). Sessions are cached locally and auto-refreshed; closing the app keeps you signed in.
 
 ### Dashboard
 Header greets the signed-in user by display name. Admins see "Administrator · all records" underneath and a shield **Admin** badge; regular users see "Your clinical progress". Four stat cards at the top (Total Cases, This Month, Procedures). A second row appears once procedures exist (Success Rate, Domains Covered). Below is a blue banner that opens the **Competency Map**. Further down are domain coverage bars and a list of the five most recent cases. Pending-sync cases are labelled "Pending sync" in amber.
@@ -151,7 +155,7 @@ Lists visible procedures, newest first (same owner + supervised + observed scope
 ### Settings
 Shows:
 - Your display name and role (User / Administrator), with a shield icon for admins
-- **Sync Now** — uploads all unsynced records to the (mock) Supabase backend, shows result
+- **Sync Now** — pushes unsynced records to Supabase and pulls remote changes; disabled in Offline-only mode
 - Last synced timestamp and data summary (case count, procedure count)
 - **Data Sharing & Consent** → four-way consent screen
 - **Export** → FHIR / openEHR / JSON-LD / data dictionary
@@ -180,7 +184,7 @@ Reachable from **Settings → Admin Panel**. Lists every account in the server D
 | **Zod** | Form and data validation | Validates user input with clear error messages |
 | **React Navigation** | Screen routing and tab bar | The standard navigation library for React Native |
 | **dayjs** | Date formatting and calculation | Tiny, fast, simple API |
-| **Supabase** (mock) | Cloud database and auth | The planned backend — currently mocked for local testing |
+| **Supabase** | Cloud database + Auth + RLS | Backend for auth and two-way sync. Schema mirrors local SQLite. |
 
 ---
 
@@ -199,29 +203,27 @@ ICU-Logbook/
     │   ├── CaseLog.ts           ← CaseLog type and Zod schema
     │   └── ProcedureLog.ts      ← ProcedureLog type and Zod schema
     │
-    ├── database/                ← Two SQLite files: local cache + mock server
+    ├── database/                ← Local SQLite cache (icu_logbook.db)
     │   ├── client.native.ts     ← Opens icu_logbook.db (offline cache)
     │   ├── client.web.ts        ← Web stub
-    │   ├── migrations.ts        ← v1→v5 local schema migrations (additive)
-    │   ├── serverClient.native.ts ← Opens icu_logbook_server.db (users/sessions)
-    │   ├── serverClient.web.ts  ← Web stub
-    │   └── serverMigrations.ts  ← v1→v2 server schema migrations
+    │   └── migrations.ts        ← v1→v7 local schema migrations (additive)
     │
     ├── services/                ← All data operations (no UI logic here)
     │   ├── DataService.ts       ← Shared interfaces (IDataService, ISyncService)
-    │   ├── CaseService.ts       ← CRUD + queries for cases
-    │   ├── ProcedureService.ts  ← CRUD + queries for procedures
-    │   ├── AuthService.ts       ← signIn, signOut, session restore, hasAnyUser, createFirstAdmin, user CRUD
+    │   ├── CaseService.ts       ← CRUD + soft-delete for cases
+    │   ├── ProcedureService.ts  ← CRUD + soft-delete for procedures
+    │   ├── AuthService.ts       ← Supabase auth wrappers + profile queries
     │   ├── AuthScope.ts         ← SQL WHERE fragments for per-user visibility
-    │   ├── passwordHash.ts      ← Salt + hash helpers for the mock server
-    │   ├── SyncService.ts       ← Uploads unsynced records to Supabase
-    │   └── supabase.ts          ← Mock Supabase client (swap for real later)
+    │   ├── authState.ts         ← Shared auth ref (breaks store↔scope cycle)
+    │   ├── SyncService.ts       ← Two-way sync with Supabase + conflict tracking
+    │   └── supabase.ts          ← Real Supabase client (AsyncStorage-persisted session)
     │
     ├── store/                   ← Reactive state (what screens read and write)
     │   ├── authStore.ts         ← Session, user, role, needsInitialSetup flag
     │   ├── caseStore.ts         ← Case list, domain counts, month count
     │   ├── procedureStore.ts    ← Procedure list, success rate, type counts
     │   ├── consentStore.ts      ← Four-way data-sharing consent
+    │   ├── offlineStore.ts      ← Offline-only toggle (kills sync)
     │   └── syncStore.ts         ← Sync in-progress state, last sync time
     │
     ├── components/              ← Reusable UI building blocks
@@ -236,8 +238,7 @@ ICU-Logbook/
     │   └── UserPicker.tsx       ← Modal single-select picker for a user
     │
     ├── screens/                 ← One file per screen
-    │   ├── FirstRunSetupScreen.tsx   ← Initial admin creation when DB has no users
-    │   ├── LoginScreen.tsx
+    │   ├── LoginScreen.tsx          ← Sign in / sign up / Google OAuth
     │   ├── DashboardScreen.tsx
     │   ├── CompetencyScreen.tsx
     │   ├── CaseListScreen.tsx
@@ -336,35 +337,30 @@ A QR code and menu will appear in the terminal.
 
 ### First launch
 
-On the very first launch the app creates two SQLite databases (`icu_logbook.db` for the offline cache, `icu_logbook_server.db` as the mock remote server) and runs all migrations. Because the server DB starts empty, you'll be routed to the **First-Run Setup** screen to create the initial admin account. Fill it in, tap *Create Admin & Sign In*, and you land straight in the app.
+On the very first launch the app opens the local SQLite cache (`icu_logbook.db`), runs all migrations, and shows the Login screen. Sign up with email + password, **Continue with Google**, or sign in if you already have an account. All new accounts default to role `user` — promote your first admin from the Supabase dashboard (*Table Editor → profiles → set `role = admin`*).
 
-> To reset back to first-run setup at any time, erase the simulator ("Device → Erase All Content and Settings…") or delete and reinstall Expo Go / your dev client on a physical device. Both SQLite files live inside the app sandbox, so removing the app removes all data.
+> To clear your local session, erase the simulator ("Device → Erase All Content and Settings…") or tap *Sign Out* in Settings. Both SQLite files live inside the app sandbox, so removing the app removes all local data.
 
 ---
 
 ## 9. Using the App
 
-### First-run admin setup
+### Signing in or up
 
-The very first time the app runs (or after erasing app data), no user accounts exist. The app detects this and forces the **Setup** screen:
+On the Login screen you can:
+- **Sign In** with email + password.
+- **Create Account** — tap the toggle, enter name + email + password (min 8 chars). If the Supabase project requires email confirmation you'll get a "check your inbox" prompt; click the link and return to sign in.
+- **Continue with Google** — launches Google OAuth in an in-app browser. The app catches the `iculogbook://auth-callback` redirect and exchanges the code for a session on-device.
 
-1. Enter an email
-2. Enter a display name
-3. Enter a password (minimum 6 characters) and confirm it
-4. Tap **Create Admin & Sign In**
+Sessions survive app restarts. To switch accounts, use **Settings → Sign Out**.
 
-That first account is always an admin, and the setup flow refuses to run after any user exists — so it can't be used as a back-door once the Admin Panel is in use.
+### Granting admin
 
-### Logging in
-
-1. Enter your email and password
-2. Tap **Sign In**
-
-Sessions last 30 days and survive app restarts. If you want to switch accounts, use **Settings → Sign Out**.
+All new accounts default to role `user`. To promote the first admin, open *Supabase dashboard → Table Editor → profiles*, find the row, and set `role = 'admin'`. After that, admins can flip other users' roles from **Settings → Admin Panel**.
 
 ### Creating additional users
 
-Only admins can create accounts. **Settings → Admin Panel → Create User** — set email, display name, password, and role (user or admin). Users can then log in with those credentials on any device.
+Anyone can self-sign-up. Alternatively, admins can invite users from *Supabase dashboard → Authentication → Users → Invite user*. The mobile app cannot create accounts on someone else's behalf (that requires the service role, which doesn't belong on a phone).
 
 ### Logging a case
 
@@ -405,7 +401,7 @@ The case appears immediately in the **Cases** tab — for you (as owner) and for
 3. Tap **Sync Now** to upload all pending records
 4. An alert confirms how many records were synced
 
-> In this demo, sync uses a mock Supabase client. No data leaves the device. See [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md) for real sync setup.
+> Sync uses a real Supabase backend. Toggle **Offline-only mode** in Settings if you want to keep the logbook purely local.
 
 ### Who sees what
 
@@ -433,10 +429,10 @@ Users who didn't create a record can still view its full detail (they're a parti
 
 ## 10. Data & Privacy
 
-- All data is stored **only on the device**, in two SQLite files: `icu_logbook.db` (the offline cache of cases / procedures) and `icu_logbook_server.db` (a stand-in for the remote server — users, sessions, and the source-of-truth copy of each record). Both live inside the app sandbox (`.../Library/LocalDatabase/` on iOS).
+- Local data lives in a single SQLite file `icu_logbook.db` inside the app sandbox (`.../Library/LocalDatabase/` on iOS). Auth sessions are held in AsyncStorage by the Supabase client. Anything synced ends up in your Supabase project; nothing else leaves the device.
 - Passwords are salted + hashed before being written to the server DB; only session tokens are cached on the device.
-- No data is sent anywhere unless you tap **Sync Now** — and in this demo the sync target is a mock client, so even that doesn't leave the device.
-- Deleting the app removes both DBs permanently. On next install the app returns to the first-run setup flow because the server DB has zero accounts.
+- Data is synced to Supabase on every write (fire-and-forget) and whenever you tap **Sync Now**. If you'd rather not sync at all, flip **Offline-only mode** on in Settings and no network call is made.
+- Deleting the app removes the local SQLite cache permanently. On next install the app shows the Login screen; cloud data persists in Supabase and re-syncs when you sign back in.
 - **Data-sharing consent** is opt-out. The default is **Commercial** — because every payload is fully anonymised at the client (PII scrubbed, dates epoch-weeked, device ID redacted), there is no identifying information to protect. Users can downgrade to *Research*, *Anonymous aggregate only*, or *Private* at any time in **Settings → Data sharing consent**.
 - **Exports are de-identified at the client.** Free-text fields are scrubbed for PII patterns, dates are shifted to epoch-week, and device IDs are redacted before any payload leaves the app. See [Section 11: FAIR Semantic Data Product](#11-fair-semantic-data-product).
 
@@ -561,9 +557,9 @@ The static schema artefacts live in `assets/schema/` and are intended to be publ
 
 Consumers point their RDF toolchain at these URLs and get a fully self-describing, validatable dataset.
 
-### 11.8 Backend plan (AWS, central)
+### 11.8 Backend plan
 
-Current sync client is a mock (`src/services/supabase.ts`). The production target is a central AWS backend (S3 + Postgres/RDS + API Gateway + Cognito). The worldwide rollout model is:
+The shipped backend is **Supabase** (Postgres + Auth + RLS). For large-scale rollout the production target is a central AWS backend (S3 + Postgres/RDS + API Gateway + Cognito). The worldwide rollout model is:
 
 1. Device logs records locally (offline-first unchanged).
 2. On sync, records upload to the trainee's private cloud store, with consent status attached.
@@ -604,9 +600,9 @@ Redux Toolkit is excellent for large teams and complex state graphs. Zustand pro
 
 Screens should only describe what the UI looks like. Stores should only hold and update state. All SQL queries and data transformations live in the service layer (`CaseService`, `ProcedureService`). This means any screen can be rewritten without touching the data layer, and the data layer can be tested independently.
 
-### Why is the Supabase client a mock in a separate file?
+### Why is the Supabase client isolated in a single file?
 
-The mock (`src/services/supabase.ts`) has exactly the same method signatures as the real Supabase JS client. When you are ready to go live, you replace only this one file — every other file that imports it continues to work unchanged.
+`src/services/supabase.ts` is the only module that creates the `createClient(...)` instance. Every other module imports `{ supabase }` from there. If you ever swap providers (self-hosted Postgres, a different BaaS, direct REST), this is the only file that has to change.
 
 ### Why is each database migration in a separate version entry?
 
@@ -614,24 +610,15 @@ Migrations run exactly once per version number. If you add a new migration entry
 
 ### Why is `synced` a boolean field on every record?
 
-This is the simplest possible offline-sync pattern (sometimes called "sync flag"). Every write sets `synced = false`. Every successful upload sets `synced = true`. The sync service only uploads `synced = false` records. This works reliably for a single-user, single-device scenario. It is intentionally simple — see the production roadmap for multi-device conflict resolution.
+This is the simplest possible sync pattern (a "sync flag"). Every write sets `synced = false`. The sync service pushes all `synced = false` rows to Supabase, then marks them `synced = true` and records the authoritative `server_updated_at`. The pull half uses `server_updated_at > last_pull_watermark` to bring down remote changes. Conflicts (remote-updated row meets local unsynced edits) set `conflict = 1` on the local row so the user can resolve manually.
 
 ---
 
 ## 13. Extending the App
 
-### Adding a real Supabase backend
+### Configuring Supabase
 
-See [SETUP.md](SETUP.md) for step-by-step instructions including the SQL schema, environment variables, and how to replace the mock client.
-
-### Swapping the mock server for real Supabase Auth
-
-Real authentication is already wired in — the mock "server" is a second SQLite file with `users` and `sessions` tables and salted/hashed passwords. To go live:
-
-1. Install `@supabase/supabase-js` and `@react-native-async-storage/async-storage`
-2. Replace the bodies of the six exports in `src/services/AuthService.ts` (`signIn`, `restoreSession`, `signOut`, `listUsers`, `createUser`, `updateUserRole`, `setUserDisabled`, `resetUserPassword`, `deleteUser`, `hasAnyUser`, `createFirstAdmin`) with Supabase Auth / RPC calls — every screen and store reads through this single file.
-3. Replicate the `owner_id` / `supervisor_user_id` / `observer_user_id` columns in the Supabase `case_logs` / `procedure_logs` tables and write Row-Level Security policies that mirror `AuthScope.ts` (`admin sees all`, user sees `owner OR supervisor OR observer`).
-4. Decide what to do with the first-run setup flow: in production the first admin is usually seeded via a Supabase dashboard invite, not by any app user. Either hide the setup screen behind a build flag, or keep it for self-hosted / on-prem deployments.
+See [SETUP.md](SETUP.md) for provisioning a project, applying the schema/RLS, enabling Google OAuth, promoting the first admin, and environment variables.
 
 ### Adding AI summaries
 
@@ -718,7 +705,7 @@ This usually means the database failed to open. Check that:
 
 ### I want to wipe everything and start over
 
-Erase the simulator (iOS: *Device → Erase All Content and Settings…*) or delete the Expo Go / dev-client app. Both SQLite files live inside the app sandbox so uninstalling removes all data, including the admin account. On next launch you'll see the first-run setup screen again.
+Erase the simulator (iOS: *Device → Erase All Content and Settings…*) or delete the Expo Go / dev-client app. The local SQLite cache lives inside the app sandbox so uninstalling removes all local data. To also wipe server data, delete the user from the Supabase dashboard (*Auth → Users*) — the profile row and any case/procedure logs cascade. On next launch you'll see the Login screen.
 
 ---
 

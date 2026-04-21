@@ -120,7 +120,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     const db = await getDatabase();
     const scope = caseScopedWhere();
     const rows = await db.getAllAsync<CaseRow>(
-      `SELECT * FROM case_logs WHERE ${scope.clause} ORDER BY date DESC, created_at DESC`,
+      `SELECT * FROM case_logs WHERE deleted_at IS NULL AND ${scope.clause} ORDER BY date DESC, created_at DESC`,
       scope.params
     );
     return rows.map(rowToModel);
@@ -130,7 +130,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     const db = await getDatabase();
     const scope = caseScopedWhere();
     const row = await db.getFirstAsync<CaseRow>(
-      `SELECT * FROM case_logs WHERE id = ? AND ${scope.clause}`,
+      `SELECT * FROM case_logs WHERE id = ? AND deleted_at IS NULL AND ${scope.clause}`,
       [id, ...scope.params]
     );
     return row ? rowToModel(row) : null;
@@ -278,9 +278,17 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     return (await this.findById(id))!;
   }
 
+  // Soft delete — marks the row as deleted locally and queues a tombstone
+  // for sync. The row stays in the table (filtered out by all read paths)
+  // until the next push reaches Supabase, after which the remote row is
+  // also marked deleted. This keeps web/mobile clients consistent.
   async delete(id: string): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync('DELETE FROM case_logs WHERE id = ?', [id]);
+    const now = nowISO();
+    await db.runAsync(
+      'UPDATE case_logs SET deleted_at = ?, updated_at = ?, synced = 0 WHERE id = ?',
+      [now, now, id]
+    );
   }
 
   // Approve a case — only the tagged supervisor may approve. Returns
@@ -330,7 +338,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     const scope = caseScopedWhere();
     const start = startOfMonthISO();
     const row = await db.getFirstAsync<{ count: number }>(
-      `SELECT COUNT(*) as count FROM case_logs WHERE created_at >= ? AND ${scope.clause}`,
+      `SELECT COUNT(*) as count FROM case_logs WHERE created_at >= ? AND deleted_at IS NULL AND ${scope.clause}`,
       [start, ...scope.params]
     );
     return row?.count ?? 0;
@@ -351,7 +359,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
     const db = await getDatabase();
     const scope = caseScopedWhere();
     const rows = await db.getAllAsync<CaseRow>(
-      `SELECT * FROM case_logs WHERE date >= ? AND date <= ? AND ${scope.clause} ORDER BY date DESC`,
+      `SELECT * FROM case_logs WHERE date >= ? AND date <= ? AND deleted_at IS NULL AND ${scope.clause} ORDER BY date DESC`,
       [from, to, ...scope.params]
     );
     return rows.map(rowToModel);

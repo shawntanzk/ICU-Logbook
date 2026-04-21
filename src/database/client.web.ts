@@ -13,3 +13,7 @@ export async function initializeDatabase(): Promise<void> {
   // No-op on web so App.tsx can render a friendly unsupported-platform notice
   // rather than crashing at startup.
 }
+
+export async function wipeLocalData(): Promise<void> {
+  // No-op on web — nothing was persisted there to begin with.
+}
