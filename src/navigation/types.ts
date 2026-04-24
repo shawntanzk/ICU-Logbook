@@ -19,6 +19,7 @@ export type CasesStackParamList = {
   CaseList: undefined;
   CaseDetail: { caseId: string };
   EditCase: { caseId: string };
+  AddCase: undefined;
 };
 
 // ─── Stack inside Procedures tab ─────────────────────────────────────────────

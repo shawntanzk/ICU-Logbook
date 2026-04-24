@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { View } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NetworkBanner } from '../components/NetworkBanner';
 
@@ -77,9 +77,25 @@ function DashboardNavigator() {
 function CasesNavigator() {
   return (
     <CasesStack.Navigator screenOptions={stackScreenOptions}>
-      <CasesStack.Screen name="CaseList" component={CaseListScreen} options={{ title: 'Case Log' }} />
+      <CasesStack.Screen
+        name="CaseList"
+        component={CaseListScreen}
+        options={({ navigation }) => ({
+          title: 'Case Log',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AddCase')}
+              style={{ marginRight: 8, padding: 4 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="add" size={26} color={COLORS.white} />
+            </TouchableOpacity>
+          ),
+        })}
+      />
       <CasesStack.Screen name="CaseDetail" component={CaseDetailScreen} options={{ title: 'Case Details' }} />
       <CasesStack.Screen name="EditCase" component={EditCaseScreen} options={{ title: 'Edit Case' }} />
+      <CasesStack.Screen name="AddCase" component={AddCaseScreen} options={{ title: 'New Case' }} />
     </CasesStack.Navigator>
   );
 }
