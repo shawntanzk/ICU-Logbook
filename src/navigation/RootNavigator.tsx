@@ -22,6 +22,8 @@ import {
 
 // ── Screens ──────────────────────────────────────────────────────────────────
 import { LoginScreen } from '../screens/LoginScreen';
+import { RegisterScreen } from '../screens/RegisterScreen';
+import { CompleteRegistrationScreen } from '../screens/CompleteRegistrationScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { CompetencyScreen } from '../screens/CompetencyScreen';
 import { CaseListScreen } from '../screens/CaseListScreen';
@@ -189,7 +191,7 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, profileComplete } = useAuthStore();
   const acceptedVersion = useTermsStore((s) => s.acceptedVersion);
   const termsAccepted = acceptedVersion === TERMS_VERSION;
 
@@ -198,10 +200,19 @@ export function RootNavigator() {
       <View style={{ flex: 1 }}>
         <Root.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           {!isLoggedIn ? (
-            <Root.Screen name="Login" component={LoginScreen} />
+            // ── Unauthenticated: Login + Register reachable from each other ──
+            <>
+              <Root.Screen name="Login" component={LoginScreen} />
+              <Root.Screen name="Register" component={RegisterScreen} />
+            </>
           ) : !termsAccepted ? (
+            // ── Terms gate ─────────────────────────────────────────────────
             <Root.Screen name="Terms" component={TermsScreen} />
+          ) : !profileComplete ? (
+            // ── Profile completion gate (Google OAuth / incomplete signup) ──
+            <Root.Screen name="CompleteRegistration" component={CompleteRegistrationScreen} />
           ) : (
+            // ── Fully authenticated and registered ─────────────────────────
             <Root.Screen name="Main" component={MainTabs} />
           )}
         </Root.Navigator>

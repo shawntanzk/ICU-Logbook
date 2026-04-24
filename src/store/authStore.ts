@@ -9,6 +9,7 @@ import {
   restoreSession,
   sendPasswordResetEmail as svcSendPasswordReset,
   updatePassword as svcUpdatePassword,
+  setMedicalRegistration as svcSetMedicalRegistration,
 } from '../services/AuthService';
 import { setAuthState } from '../services/authState';
 import { setReportingUser } from '../services/errorReporting';
@@ -39,12 +40,15 @@ interface AuthStore {
   email: string | null;
   userName: string;
   role: UserRole | null;
+  country: string | null;
+  profileComplete: boolean;
 
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signUp: (input: { email: string; displayName: string; password: string }) => Promise<AuthActionResult>;
   signInWithGoogle: () => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;
   updatePassword: (newPassword: string) => Promise<AuthActionResult>;
+  completeRegistration: (input: { country: string; medRegNumber: string }) => Promise<AuthActionResult>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
 }
@@ -57,11 +61,21 @@ function apply(set: (partial: Partial<AuthStore>) => void, user: AuthedUser | nu
       email: user.email,
       userName: user.displayName,
       role: user.role,
+      country: user.country,
+      profileComplete: user.profileComplete,
     });
     setAuthState({ userId: user.id, role: user.role });
     setReportingUser(user.id, user.role);
   } else {
-    set({ isLoggedIn: false, userId: null, email: null, userName: '', role: null });
+    set({
+      isLoggedIn: false,
+      userId: null,
+      email: null,
+      userName: '',
+      role: null,
+      country: null,
+      profileComplete: false,
+    });
     setAuthState({ userId: null, role: null });
     setReportingUser(null, null);
   }
@@ -74,6 +88,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   email: null,
   userName: '',
   role: null,
+  country: null,
+  profileComplete: false,
 
   signIn: async (email, password) => {
     const result = await svcSignIn(email, password);
@@ -130,6 +146,18 @@ export const useAuthStore = create<AuthStore>((set) => ({
     await svcSignOut();
     resetDataStores();
     apply(set, null);
+  },
+
+  completeRegistration: async (input) => {
+    try {
+      const result = await svcSetMedicalRegistration(input);
+      if (!result.ok) return { ok: false, error: result.error };
+      // Mark profile as complete in the store so the navigator gate opens.
+      set({ profileComplete: true, country: input.country.toUpperCase() });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Unknown error.' };
+    }
   },
 
   restore: async () => {

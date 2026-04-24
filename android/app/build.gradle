@@ -101,15 +101,32 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Production keystore credentials are stored in ~/.gradle/gradle.properties
+            // (never committed to source control). EAS Build injects these automatically.
+            // To set up locally: add these four lines to ~/.gradle/gradle.properties:
+            //   ICULOGBOOK_STORE_FILE=/absolute/path/to/release.keystore
+            //   ICULOGBOOK_STORE_PASSWORD=your_store_password
+            //   ICULOGBOOK_KEY_ALIAS=your_key_alias
+            //   ICULOGBOOK_KEY_PASSWORD=your_key_password
+            if (project.hasProperty('ICULOGBOOK_STORE_FILE')) {
+                storeFile file(ICULOGBOOK_STORE_FILE)
+                storePassword ICULOGBOOK_STORE_PASSWORD
+                keyAlias ICULOGBOOK_KEY_ALIAS
+                keyPassword ICULOGBOOK_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Uses production keystore when credentials are present; falls back to debug
+            // keystore for local development builds only.
+            signingConfig project.hasProperty('ICULOGBOOK_STORE_FILE')
+                ? signingConfigs.release
+                : signingConfigs.debug
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy – ICU Logbook</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.7; }
+    h1 { color: #1a5c96; border-bottom: 2px solid #1a5c96; padding-bottom: 12px; }
+    h2 { color: #1a5c96; margin-top: 36px; }
+    a  { color: #1a5c96; }
+    .updated { color: #666; font-size: 0.9em; margin-top: -8px; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #ddd; padding: 10px 14px; text-align: left; }
+    th { background: #f0f6ff; }
+    footer { margin-top: 60px; font-size: 0.85em; color: #888; border-top: 1px solid #eee; padding-top: 16px; }
+  </style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated: April 2026</p>
+
+<p>
+  ICU Logbook ("the App", "we", "us") is a professional medical training logbook
+  designed for intensive care and anaesthesia trainees. This policy explains what
+  data the App collects, why, and how it is protected.
+</p>
+
+<h2>1. Who We Are</h2>
+<p>
+  ICU Logbook is operated by [YOUR NAME / ORGANISATION].<br>
+  Contact: <a href="mailto:privacy@iculogbook.com">privacy@iculogbook.com</a>
+</p>
+
+<h2>2. What Data We Collect</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Examples</th>
+      <th>Why collected</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Account data</td>
+      <td>Email address, hashed password</td>
+      <td>Authentication and account management</td>
+    </tr>
+    <tr>
+      <td>Clinical log entries</td>
+      <td>Date, diagnosis, procedure type, supervision level, reflection notes</td>
+      <td>Core logbook functionality; training portfolio</td>
+    </tr>
+    <tr>
+      <td>Procedure records</td>
+      <td>Procedure type, outcome, number of attempts, complications</td>
+      <td>Competency tracking and supervisor approval</td>
+    </tr>
+    <tr>
+      <td>Supervisor linkage</td>
+      <td>Supervisor user ID or free-text name</td>
+      <td>Approval workflow and attestation</td>
+    </tr>
+    <tr>
+      <td>Device &amp; usage data</td>
+      <td>OS version, app version, crash reports</td>
+      <td>Bug fixing and compatibility</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  <strong>Patient data:</strong> The App is designed so that <em>no patient-identifiable
+  information is collected or required</em>. Log entries use anonymised descriptors
+  (diagnosis category, age range, sex) only. Do not enter patient names, NHS numbers,
+  or other direct identifiers.
+</p>
+
+<h2>3. What We Do Not Collect</h2>
+<ul>
+  <li>Precise location data</li>
+  <li>Camera, microphone, or photo library access</li>
+  <li>Contacts or calendar data</li>
+  <li>Advertising identifiers or cross-app tracking</li>
+  <li>Biometric data (Face ID / Touch ID is handled entirely by the OS and is never transmitted)</li>
+</ul>
+
+<h2>4. How Data Is Stored</h2>
+<p>
+  Data is stored in two places:
+</p>
+<ul>
+  <li>
+    <strong>On-device (SQLite):</strong> A local encrypted database stores your log
+    entries for offline access. The database is not accessible to other apps.
+  </li>
+  <li>
+    <strong>Cloud (Supabase / PostgreSQL):</strong> When online, data is synchronised
+    to a Supabase-hosted PostgreSQL database secured with row-level security (RLS).
+    Only you, your designated supervisors, and authorised administrators can access
+    your records. The database is hosted in [AWS / GCP] eu-west region.
+  </li>
+</ul>
+<p>
+  All data in transit is encrypted with TLS 1.2+. At-rest encryption is provided
+  by the hosting platform.
+</p>
+
+<h2>5. Data Sharing</h2>
+<p>We share your data with:</p>
+<ul>
+  <li><strong>Supabase Inc.</strong> – database hosting and authentication provider.</li>
+  <li><strong>Your supervisors / training programme administrators</strong> – as granted
+    by you via the in-app supervisor consent feature.</li>
+</ul>
+<p>We do <em>not</em> sell, rent, or share your data with advertisers or any other third party.</p>
+
+<h2>6. Data Retention</h2>
+<p>
+  Your data is retained for as long as your account is active. You may request
+  deletion of your account and all associated data at any time by emailing
+  <a href="mailto:privacy@iculogbook.com">privacy@iculogbook.com</a>. Data will be
+  permanently deleted within 30 days of a verified deletion request.
+</p>
+
+<h2>7. Your Rights (GDPR / UK GDPR)</h2>
+<p>You have the right to:</p>
+<ul>
+  <li>Access a copy of your personal data</li>
+  <li>Correct inaccurate data</li>
+  <li>Request erasure ("right to be forgotten")</li>
+  <li>Object to or restrict processing</li>
+  <li>Data portability (CSV export is available in-app)</li>
+  <li>Lodge a complaint with the ICO (UK) or your national supervisory authority</li>
+</ul>
+<p>To exercise any of these rights, email <a href="mailto:privacy@iculogbook.com">privacy@iculogbook.com</a>.</p>
+
+<h2>8. Children</h2>
+<p>
+  The App is intended for healthcare professionals and medical trainees aged 18 and
+  over. We do not knowingly collect data from anyone under 18.
+</p>
+
+<h2>9. iOS &amp; Android Platform Disclosures</h2>
+<ul>
+  <li>
+    <strong>Face ID / Biometrics:</strong> The App uses iOS Secure Enclave / Android
+    Keystore for optional biometric lock. Biometric data never leaves your device
+    and is never transmitted to our servers.
+  </li>
+  <li>
+    <strong>Keychain / Secure Store:</strong> Authentication tokens are stored in
+    iOS Keychain / Android Keystore, accessible only to this App.
+  </li>
+  <li>
+    <strong>Encryption:</strong> The App uses only standard HTTPS/TLS for all network
+    communication. No custom or non-exempt encryption algorithms are used.
+  </li>
+</ul>
+
+<h2>10. Changes to This Policy</h2>
+<p>
+  We may update this policy from time to time. Material changes will be notified
+  in-app. Continued use of the App after notice constitutes acceptance of the
+  updated policy.
+</p>
+
+<h2>11. Contact</h2>
+<p>
+  Questions or concerns? Email <a href="mailto:privacy@iculogbook.com">privacy@iculogbook.com</a>.
+</p>
+
+<footer>
+  &copy; 2026 ICU Logbook. All rights reserved.
+</footer>
+
+</body>
+</html>

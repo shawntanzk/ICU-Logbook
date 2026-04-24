@@ -3,6 +3,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 // ─── Root (auth gate) ─────────────────────────────────────────────────────────
 export type RootStackParamList = {
   Login: undefined;
+  Register: undefined;
+  CompleteRegistration: undefined;
   Consent: undefined;
   Terms: undefined;
   Main: undefined;
