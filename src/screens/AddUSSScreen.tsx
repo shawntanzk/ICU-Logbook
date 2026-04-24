@@ -21,6 +21,7 @@ import {
   SUPERVISION_LEVELS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof USSLogInput, string>>;
 
@@ -43,7 +44,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddUSSScreen() {
+export function AddUSSScreen({ route }: LogStackProps<'AddUSS'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
 
@@ -53,7 +54,7 @@ export function AddUSSScreen() {
 
   const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
 
-  const [form, setForm] = useState<USSLogInput>(EMPTY_FORM);
+  const [form, setForm] = useState<USSLogInput>({ ...EMPTY_FORM, caseId: route.params?.caseId });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
@@ -78,7 +79,7 @@ export function AddUSSScreen() {
     setLoading(true);
     try {
       await USSService.create(result.data);
-      setForm({ ...EMPTY_FORM, date: todayISO() });
+      setForm({ ...EMPTY_FORM, date: todayISO(), caseId: route.params?.caseId });
       setErrors({});
       Alert.alert('USS Study Logged', 'Your USS study has been saved successfully.');
     } catch {

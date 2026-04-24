@@ -21,6 +21,7 @@ import {
   SUPERVISION_LEVELS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof CVCLogInput, string>>;
 
@@ -46,7 +47,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddCVCScreen() {
+export function AddCVCScreen({ route }: LogStackProps<'AddCVC'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [attemptsStr, setAttemptsStr] = useState('1');
@@ -57,7 +58,7 @@ export function AddCVCScreen() {
 
   const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
 
-  const [form, setForm] = useState<CVCLogInput>(EMPTY_FORM);
+  const [form, setForm] = useState<CVCLogInput>({ ...EMPTY_FORM, caseId: route.params?.caseId });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
@@ -87,7 +88,7 @@ export function AddCVCScreen() {
     setLoading(true);
     try {
       await CVCService.create(result.data);
-      setForm({ ...EMPTY_FORM, date: todayISO() });
+      setForm({ ...EMPTY_FORM, date: todayISO(), caseId: route.params?.caseId });
       setAttemptsStr('1');
       setErrors({});
       Alert.alert('CVC Logged', 'Your CVC log has been saved successfully.');

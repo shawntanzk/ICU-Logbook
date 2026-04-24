@@ -21,6 +21,7 @@ import {
   SUPERVISION_LEVELS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof ArterialLineLogInput, string>>;
 
@@ -44,7 +45,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddArterialLineScreen() {
+export function AddArterialLineScreen({ route }: LogStackProps<'AddArterialLine'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [attemptsStr, setAttemptsStr] = useState('1');
@@ -55,7 +56,7 @@ export function AddArterialLineScreen() {
 
   const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
 
-  const [form, setForm] = useState<ArterialLineLogInput>(EMPTY_FORM);
+  const [form, setForm] = useState<ArterialLineLogInput>({ ...EMPTY_FORM, caseId: route.params?.caseId });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
 
@@ -85,7 +86,7 @@ export function AddArterialLineScreen() {
     setLoading(true);
     try {
       await ArterialLineService.create(result.data);
-      setForm({ ...EMPTY_FORM, date: todayISO() });
+      setForm({ ...EMPTY_FORM, date: todayISO(), caseId: route.params?.caseId });
       setAttemptsStr('1');
       setErrors({});
       Alert.alert('Arterial Line Logged', 'Your arterial line log has been saved successfully.');

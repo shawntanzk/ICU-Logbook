@@ -23,6 +23,7 @@ import {
   SEX_OPTIONS, SPECIALTY_OPTIONS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof WardReviewLogInput, string>>;
 
@@ -58,7 +59,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddWardReviewScreen() {
+export function AddWardReviewScreen(_props: LogStackProps<'AddWardReview'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
 

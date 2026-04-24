@@ -22,6 +22,7 @@ import {
   SEX_OPTIONS, LEVEL_OF_CARE_OPTIONS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof TransferLogInput, string>>;
 
@@ -64,7 +65,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddTransferScreen() {
+export function AddTransferScreen(_props: LogStackProps<'AddTransfer'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
 

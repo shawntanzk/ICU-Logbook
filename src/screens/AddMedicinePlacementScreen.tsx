@@ -22,6 +22,7 @@ import {
   SPECIALTY_OPTIONS, TEACHING_RECIPIENT_OPTIONS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof MedicinePlacementLogInput, string>>;
 
@@ -49,7 +50,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddMedicinePlacementScreen() {
+export function AddMedicinePlacementScreen(_props: LogStackProps<'AddMedicinePlacement'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [patientCountStr, setPatientCountStr] = useState('');

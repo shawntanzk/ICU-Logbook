@@ -23,6 +23,7 @@ import {
   SEX_OPTIONS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
+import type { LogStackProps } from '../navigation/types';
 
 type FieldErrors = Partial<Record<keyof EDAttendanceLogInput, string>>;
 
@@ -62,7 +63,7 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-export function AddEDScreen() {
+export function AddEDScreen(_props: LogStackProps<'AddED'>) {
   const { userId } = useAuthStore();
   const [users, setUsers] = useState<ManagedUser[]>([]);
 
