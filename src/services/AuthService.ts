@@ -105,7 +105,13 @@ export async function signUp(input: {
 async function runOAuthFlow(
   getUrl: (redirectTo: string) => Promise<{ data: { url?: string | null } | null; error: { message: string } | null }>,
 ): Promise<{ ok: true } | { ok: false; error: string; cancelled?: boolean }> {
-  const redirectTo = Linking.createURL('/auth-callback');
+  // NOTE: pass the path WITHOUT a leading slash. Linking.createURL
+  // with '/foo' emits `iculogbook:///foo` (three slashes), which
+  // Supabase treats as a different URL from the `iculogbook://foo`
+  // variant listed in Additional Redirect URLs. Passing 'foo' gives
+  // `iculogbook://foo` — matches the allowlist, Supabase redirects
+  // cleanly, the deep-link opens the app.
+  const redirectTo = Linking.createURL('auth-callback');
   const { data, error } = await getUrl(redirectTo);
   if (error || !data?.url) {
     return { ok: false, error: error?.message ?? 'Could not start OAuth flow.' };
@@ -226,7 +232,10 @@ export async function signOut(): Promise<void> {
 // OAuth callback handler exchanges the code for a session, at which
 // point the caller should push a "Set new password" screen.
 export async function sendPasswordResetEmail(email: string): Promise<{ ok: boolean; error?: string }> {
-  const redirectTo = Linking.createURL('/auth-callback');
+  // Path without a leading slash — see runOAuthFlow for why: `/foo`
+  // produces `iculogbook:///foo` which Supabase treats as distinct
+  // from the `iculogbook://foo` entry in the redirect allowlist.
+  const redirectTo = Linking.createURL('auth-callback');
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo,
   });
