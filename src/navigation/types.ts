@@ -28,11 +28,28 @@ export type ProceduresStackParamList = {
   EditProcedure: { procedureId: string };
 };
 
+// ─── Log stack (hub + all entry screens) ─────────────────────────────────────
+export type LogStackParamList = {
+  LogHub: undefined;
+  // Clinical episodes
+  AddCase: undefined;
+  AddWardReview: undefined;
+  AddTransfer: undefined;
+  AddED: undefined;
+  AddMedicinePlacement: undefined;
+  // Procedures
+  AddAirway: { caseId?: string };
+  AddArterialLine: { caseId?: string };
+  AddCVC: { caseId?: string };
+  AddUSS: { caseId?: string };
+  AddRegionalBlock: { caseId?: string };
+};
+
 // ─── Bottom tab navigator ─────────────────────────────────────────────────────
 export type TabParamList = {
   Dashboard: undefined;
   Cases: undefined;
-  AddCase: undefined;
+  Log: undefined;     // replaced AddCase with Log (hub)
   Procedures: undefined;
   Settings: undefined;
 };
@@ -57,3 +74,6 @@ export type ProceduresStackProps<T extends keyof ProceduresStackParamList> =
 
 export type DashboardStackProps<T extends keyof DashboardStackParamList> =
   NativeStackScreenProps<DashboardStackParamList, T>;
+
+export type LogStackProps<T extends keyof LogStackParamList> =
+  NativeStackScreenProps<LogStackParamList, T>;

@@ -1,30 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ScrollView,
-  Alert,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
+  ScrollView, Alert, StyleSheet, KeyboardAvoidingView,
+  Platform, Text, View,
 } from 'react-native';
-import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuthStore } from '../store/authStore';
 import { useCaseStore } from '../store/caseStore';
 import { CaseLogSchema, CaseLogInput } from '../models/CaseLog';
 import { FormField } from '../components/FormField';
 import { DateField } from '../components/DateField';
 import { MultiSelect } from '../components/MultiSelect';
 import { RadioGroup } from '../components/RadioGroup';
+import { SelectField } from '../components/SelectField';
+import { ToggleField } from '../components/ToggleField';
 import { Button } from '../components/Button';
 import { ICD10Autocomplete } from '../components/ICD10Autocomplete';
 import { UserPicker } from '../components/UserPicker';
 import { listUsers, ManagedUser } from '../services/AuthService';
 import {
-  COLORS,
-  SPACING,
-  ORGAN_SYSTEMS,
-  COBATRICE_DOMAINS,
-  SUPERVISION_LEVELS,
+  COLORS, SPACING, FONT_SIZE, RADIUS,
+  ORGAN_SYSTEMS, COBATRICE_DOMAINS, SUPERVISION_LEVELS,
+  SEX_OPTIONS, LEVEL_OF_CARE_OPTIONS, INVOLVEMENT_OPTIONS,
+  OUTCOME_OPTIONS, TEACHING_RECIPIENT_OPTIONS, SPECIALTY_OPTIONS,
 } from '../utils/constants';
 import { todayISO } from '../utils/dateUtils';
 
@@ -32,11 +29,30 @@ type FieldErrors = Partial<Record<keyof CaseLogInput, string>>;
 
 const EMPTY_FORM: CaseLogInput = {
   date: todayISO(),
+  // demographics
+  patientAge: '',
+  patientSex: undefined,
+  // classification
+  caseNumber: '',
+  primarySpecialty: undefined,
+  levelOfCare: undefined,
+  admitted: undefined,
+  cardiacArrest: false,
+  involvement: undefined,
+  reviewedAgain: false,
+  // diagnosis
   diagnosis: '',
   icd10Code: '',
   organSystems: [],
   cobatriceDomains: [],
-  supervisionLevel: 'supervised',
+  // outcome
+  outcome: undefined,
+  communicatedWithRelatives: false,
+  // teaching
+  teachingDelivered: false,
+  teachingRecipient: undefined,
+  // supervision
+  supervisionLevel: 'local',
   supervisorUserId: null,
   observerUserId: null,
   externalSupervisorName: null,
@@ -52,7 +68,6 @@ export function AddCaseScreen() {
     listUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
 
-  // Don't offer the current user as their own supervisor/observer.
   const otherUsers = users.filter((u) => u.id !== userId && !u.disabled);
 
   const [form, setForm] = useState<CaseLogInput>(EMPTY_FORM);
@@ -61,7 +76,6 @@ export function AddCaseScreen() {
 
   function update<K extends keyof CaseLogInput>(key: K, value: CaseLogInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    // Clear error on change
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
@@ -74,6 +88,7 @@ export function AddCaseScreen() {
         if (!fieldErrors[key]) fieldErrors[key] = issue.message;
       }
       setErrors(fieldErrors);
+      Alert.alert('Validation Error', 'Please check the highlighted fields.');
       return;
     }
 
@@ -83,7 +98,7 @@ export function AddCaseScreen() {
       setForm({ ...EMPTY_FORM, date: todayISO() });
       setErrors({});
       Alert.alert('Case Logged', 'Your case has been saved successfully.');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to save case. Please try again.');
     } finally {
       setLoading(false);
@@ -103,7 +118,7 @@ export function AddCaseScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Date */}
+          {/* ── Date ─────────────────────────────────────────────────── */}
           <DateField
             label="Date"
             value={form.date}
@@ -112,7 +127,72 @@ export function AddCaseScreen() {
           />
           {errors.date ? <Text style={styles.inlineError}>{errors.date}</Text> : null}
 
-          {/* Diagnosis */}
+          {/* ── Patient demographics ──────────────────────────────────── */}
+          <SectionLabel title="Patient Demographics" />
+          <FormField
+            label="Age"
+            placeholder="e.g. 45  or  2/12  or  1/52"
+            value={form.patientAge ?? ''}
+            onChangeText={(v) => update('patientAge', v || '')}
+            hint="Years as a number, months as n/12, weeks as n/52"
+            error={errors.patientAge}
+            keyboardType="default"
+          />
+          <SelectField
+            label="Sex"
+            options={SEX_OPTIONS}
+            value={form.patientSex ?? null}
+            onChange={(v) => update('patientSex', (v as CaseLogInput['patientSex']) ?? undefined)}
+            clearable
+          />
+
+          {/* ── Episode classification ────────────────────────────────── */}
+          <SectionLabel title="Episode Classification" />
+          <FormField
+            label="Case / Episode Number"
+            placeholder="Optional reference number"
+            value={form.caseNumber ?? ''}
+            onChangeText={(v) => update('caseNumber', v || '')}
+          />
+          <SelectField
+            label="Primary Specialty"
+            options={SPECIALTY_OPTIONS}
+            value={form.primarySpecialty ?? null}
+            onChange={(v) => update('primarySpecialty', (v as CaseLogInput['primarySpecialty']) ?? undefined)}
+            clearable
+            placeholder="Select specialty…"
+          />
+          <SelectField
+            label="Level of Care"
+            options={LEVEL_OF_CARE_OPTIONS}
+            value={form.levelOfCare ?? null}
+            onChange={(v) => update('levelOfCare', (v as CaseLogInput['levelOfCare']) ?? undefined)}
+            clearable
+          />
+          <RadioGroup
+            label="Involvement"
+            options={INVOLVEMENT_OPTIONS}
+            value={form.involvement ?? ''}
+            onChange={(v) => update('involvement', v as CaseLogInput['involvement'])}
+          />
+          <ToggleField
+            label="Patient Admitted to ICU/HDU"
+            value={form.admitted ?? false}
+            onChange={(v) => update('admitted', v)}
+          />
+          <ToggleField
+            label="Cardiac Arrest"
+            value={form.cardiacArrest ?? false}
+            onChange={(v) => update('cardiacArrest', v)}
+          />
+          <ToggleField
+            label="Reviewed Again (follow-up shift)"
+            value={form.reviewedAgain ?? false}
+            onChange={(v) => update('reviewedAgain', v)}
+          />
+
+          {/* ── Diagnosis ────────────────────────────────────────────── */}
+          <SectionLabel title="Diagnosis" />
           <FormField
             label="Primary Diagnosis"
             required
@@ -122,8 +202,6 @@ export function AddCaseScreen() {
             error={errors.diagnosis}
             autoCapitalize="sentences"
           />
-
-          {/* ICD-10 — autocomplete shows "<label> [CODE]", saves code only */}
           <ICD10Autocomplete
             label="ICD-10 Code"
             value={form.icd10Code ?? ''}
@@ -131,8 +209,6 @@ export function AddCaseScreen() {
             error={errors.icd10Code}
             hint="Start typing a diagnosis or code"
           />
-
-          {/* Organ Systems */}
           <MultiSelect
             label="Organ Systems Involved"
             required
@@ -141,8 +217,6 @@ export function AddCaseScreen() {
             onChange={(v) => update('organSystems', v)}
             error={errors.organSystems}
           />
-
-          {/* CoBaTrICE Domains */}
           <MultiSelect
             label="CoBaTrICE Domains"
             required
@@ -152,7 +226,44 @@ export function AddCaseScreen() {
             error={errors.cobatriceDomains}
           />
 
-          {/* Supervision Level */}
+          {/* ── Outcome ──────────────────────────────────────────────── */}
+          <SectionLabel title="Outcome" />
+          <SelectField
+            label="Patient Outcome"
+            options={OUTCOME_OPTIONS}
+            value={form.outcome ?? null}
+            onChange={(v) => update('outcome', (v as CaseLogInput['outcome']) ?? undefined)}
+            clearable
+            placeholder="Select outcome…"
+          />
+          <ToggleField
+            label="Communication with Relatives"
+            value={form.communicatedWithRelatives ?? false}
+            onChange={(v) => update('communicatedWithRelatives', v)}
+          />
+
+          {/* ── Teaching ─────────────────────────────────────────────── */}
+          <SectionLabel title="Teaching" />
+          <ToggleField
+            label="Teaching Delivered"
+            value={form.teachingDelivered ?? false}
+            onChange={(v) => {
+              update('teachingDelivered', v);
+              if (!v) update('teachingRecipient', undefined);
+            }}
+          />
+          {form.teachingDelivered && (
+            <SelectField
+              label="Teaching Recipient"
+              options={TEACHING_RECIPIENT_OPTIONS}
+              value={form.teachingRecipient ?? null}
+              onChange={(v) => update('teachingRecipient', (v as CaseLogInput['teachingRecipient']) ?? undefined)}
+              clearable
+            />
+          )}
+
+          {/* ── Supervision ──────────────────────────────────────────── */}
+          <SectionLabel title="Supervision" />
           <RadioGroup
             label="Supervision Level"
             required
@@ -161,8 +272,6 @@ export function AddCaseScreen() {
             onChange={(v) => update('supervisionLevel', v as CaseLogInput['supervisionLevel'])}
             error={errors.supervisionLevel}
           />
-
-          {/* Supervised by — visible to chosen user as well as the owner */}
           <UserPicker
             label="Supervised by"
             users={otherUsers}
@@ -173,9 +282,6 @@ export function AddCaseScreen() {
             }}
             placeholder="None"
           />
-
-          {/* External supervisor name — for supervisors who don't have
-              an account. Mutually exclusive with the picker above. */}
           <FormField
             label="Supervisor not on system"
             placeholder="Type a name (optional)"
@@ -185,11 +291,9 @@ export function AddCaseScreen() {
               update('externalSupervisorName', trimmed);
               if (trimmed) update('supervisorUserId', null);
             }}
-            hint="Use only when the supervisor has no account. Cases with an off-system supervisor cannot be approved."
+            hint="Cases with an off-system supervisor cannot be approved."
             autoCapitalize="words"
           />
-
-          {/* Observed by — same visibility rules as supervisor */}
           <UserPicker
             label="Observed by"
             users={otherUsers}
@@ -198,7 +302,8 @@ export function AddCaseScreen() {
             placeholder="None"
           />
 
-          {/* Reflection */}
+          {/* ── Reflection ───────────────────────────────────────────── */}
+          <SectionLabel title="Reflection" />
           <FormField
             label="Reflection"
             placeholder="What did you learn? What would you do differently?"
@@ -218,11 +323,41 @@ export function AddCaseScreen() {
   );
 }
 
+function SectionLabel({ title }: { title: string }) {
+  return (
+    <View style={sectionStyles.container}>
+      <Text style={sectionStyles.text}>{title}</Text>
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  container: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+    paddingLeft: SPACING.sm,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  text: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+    color: COLORS.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+});
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   scroll: { flex: 1 },
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   textarea: { minHeight: 100 },
   submit: { marginTop: SPACING.sm },
-  inlineError: { color: COLORS.error, fontSize: 12, marginTop: 4, marginBottom: SPACING.sm },
+  inlineError: {
+    color: COLORS.error,
+    fontSize: FONT_SIZE.xs,
+    marginTop: 4,
+    marginBottom: SPACING.sm,
+  },
 });
