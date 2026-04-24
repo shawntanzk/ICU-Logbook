@@ -1,13 +1,23 @@
 import { CaseService } from '../CaseService';
 import { ProcedureService } from '../ProcedureService';
+import { WardReviewService } from '../WardReviewService';
+import { TransferService } from '../TransferService';
+import { EDAttendanceService } from '../EDAttendanceService';
+import { MedicinePlacementService } from '../MedicinePlacementService';
+import { AirwayService } from '../AirwayService';
+import { ArterialLineService } from '../ArterialLineService';
+import { CVCService } from '../CVCService';
+import { USSService } from '../USSService';
+import { RegionalBlockService } from '../RegionalBlockService';
 import { casesToFhirBundle, ExportOptions } from './FHIRExporter';
 import { casesToOpenEHR } from './OpenEHRExporter';
 import { toJsonLD } from './JSONLDExporter';
 import { dictionaryToMarkdown, DATA_DICTIONARY } from './DataDictionary';
+import { toARCPCsv } from './ARCPExporter';
 import { CaseLog } from '../../models/CaseLog';
 import { ProcedureLog } from '../../models/ProcedureLog';
 
-export type ExportFormat = 'fhir' | 'openehr' | 'jsonld' | 'dictionary';
+export type ExportFormat = 'fhir' | 'openehr' | 'jsonld' | 'dictionary' | 'arcp_csv';
 
 export interface ExportBundle {
   format: ExportFormat;
@@ -37,6 +47,48 @@ export async function exportAll(
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   switch (format) {
+    case 'arcp_csv': {
+      // Load all sub-entity tables in parallel — no de-identification is
+      // applied (this is the trainee's own portfolio export, not a research
+      // dataset). Consent filtering still applies to case_logs.
+      const [
+        wardReviews, transfers, edAttendances, medicinePlacements,
+        airways, arterialLines, cvcs, ussStudies, regionalBlocks,
+      ] = await Promise.all([
+        WardReviewService.findAll(),
+        TransferService.findAll(),
+        EDAttendanceService.findAll(),
+        MedicinePlacementService.findAll(),
+        AirwayService.findAll(),
+        ArterialLineService.findAll(),
+        CVCService.findAll(),
+        USSService.findAll(),
+        RegionalBlockService.findAll(),
+      ]);
+      const csv = toARCPCsv({
+        cases: filteredCases,
+        wardReviews,
+        transfers,
+        edAttendances,
+        medicinePlacements,
+        airways,
+        arterialLines,
+        cvcs,
+        ussStudies,
+        regionalBlocks,
+      });
+      const totalRecords =
+        filteredCases.length + wardReviews.length + transfers.length +
+        edAttendances.length + medicinePlacements.length + airways.length +
+        arterialLines.length + cvcs.length + ussStudies.length + regionalBlocks.length;
+      return {
+        format,
+        mediaType: 'text/csv',
+        filename: `iculogbook-arcp-${timestamp}.csv`,
+        payload: csv,
+        recordCount: totalRecords,
+      };
+    }
     case 'fhir': {
       const bundle = casesToFhirBundle(filteredCases, filteredProcs, opts);
       return {
