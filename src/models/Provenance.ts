@@ -37,4 +37,7 @@ export type Quality = z.infer<typeof QualitySchema>;
 
 // Semver of the on-disk data schema. Bump when the shape of saved rows
 // changes in a non-backward-compatible way.
-export const CURRENT_SCHEMA_VERSION = '2.0.0';
+// 3.0.0 — full parity redesign: 5-level supervision, demographics, specialty,
+//          level of care, outcome, sub-entity tables (airway, art line, CVC,
+//          USS, regional block, ward review, transfer, ED, medicine placement).
+export const CURRENT_SCHEMA_VERSION = '3.0.0';

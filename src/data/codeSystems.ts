@@ -26,6 +26,24 @@ export const CODE_SYSTEMS = {
 
   // Biolink Model — the schema Monarch uses to align all the above.
   biolink: 'https://w3id.org/biolink/vocab/',
+
+  // Additional OBO Foundry ontologies for clinical training data.
+  nci:   'http://purl.obolibrary.org/obo/ncit.owl',          // NCI Thesaurus (procedures, roles)
+  ro:    'http://purl.obolibrary.org/obo/ro.owl',            // Relation Ontology (has_role, participates_in)
+  iao:   'http://purl.obolibrary.org/obo/iao.owl',           // Information Artifact Ontology (data items)
+  oae:   'http://purl.obolibrary.org/obo/oae.owl',           // Ontology of Adverse Events (outcomes)
+  pato:  'http://purl.obolibrary.org/obo/pato.owl',          // Phenotype And Trait Ontology (sex, age)
+  stato: 'http://purl.obolibrary.org/obo/stato.owl',         // Statistics Ontology (counts, rates)
+  uo:    'http://purl.obolibrary.org/obo/uo.owl',            // Units of Measurement Ontology
+
+  // ICM-specific training framework namespaces.
+  icmSupervision: 'https://w3id.org/iculogbook/icm-supervision', // 5-level ICM supervision scale
+  icmLevelOfCare: 'https://w3id.org/iculogbook/level-of-care',   // Level 1/2/3 critical care
+  icmSpecialty:   'https://w3id.org/iculogbook/specialty',       // ICM specialty mix codes
+  icmOutcome:     'https://w3id.org/iculogbook/outcome',         // Patient outcome categories
+  icmAirway:      'https://w3id.org/iculogbook/airway',          // Airway management sub-types
+  icmUss:         'https://w3id.org/iculogbook/uss',             // USS study types (FICE, FAST, etc.)
+  icmBlock:       'https://w3id.org/iculogbook/regional-block',  // Regional block catalogue
 } as const;
 
 // Term-level PURL builders. OBO term URIs follow the pattern
