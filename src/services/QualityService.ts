@@ -16,25 +16,45 @@ function fraction(populated: number, total: number): number {
 }
 
 export function scoreCase(c: CaseLog): Quality {
-  // Completeness — 7 fields the user *could* have filled in:
-  // date, diagnosis (free-text), icd10Code, organSystems≥1, cobatriceDomains≥1,
-  // supervisionLevel, reflection
-  const fields = [
+  // Completeness — 13 scored fields (weight 1 each).
+  //
+  // Core fields (7) — present since v1:
+  //   date, diagnosis, icd10Code, organSystems≥1, cobatriceDomains≥1,
+  //   supervisionLevel, reflection
+  //
+  // ARCP parity fields (6) — added in v9:
+  //   patientAge, patientSex, primarySpecialty, levelOfCare,
+  //   involvement, outcome
+  //
+  // Booleans (admitted, cardiacArrest, etc.) are always set so don't add
+  // to the denominator — they can't be "missing".
+  const fields: boolean[] = [
+    // ── core ────────────────────────────────────────────────────────────
     !!c.date,
     !!c.diagnosis,
-    !!c.icd10Code,
+    !!(c.icd10Code && c.icd10Code.length > 0),
     c.organSystems.length > 0,
     c.cobatriceDomains.length > 0,
     !!c.supervisionLevel,
-    !!c.reflection,
+    !!(c.reflection && c.reflection.trim().length > 0),
+    // ── ARCP parity ──────────────────────────────────────────────────────
+    !!(c.patientAge && c.patientAge.length > 0),
+    !!c.patientSex,
+    !!c.primarySpecialty,
+    !!c.levelOfCare,
+    !!c.involvement,
+    !!c.outcome,
   ];
   const completeness = fraction(fields.filter(Boolean).length, fields.length);
 
   // Coding confidence — of the coded fields, how many resolved to a real
   // public code system (not the app-local fallback).
-  const codedValues: Array<{ system: string } | null> = [
+  const codedValues: Array<{ system: string } | null | undefined> = [
     c.diagnosisCoded,
     c.supervisionLevelCoded,
+    c.specialtyCoded ?? null,
+    c.levelOfCareCoded ?? null,
+    c.outcomeCoded ?? null,
     ...c.organSystemsCoded,
     ...c.cobatriceDomainsCoded,
   ];
@@ -42,7 +62,7 @@ export function scoreCase(c: CaseLog): Quality {
   const public_ = resolved.filter(
     (v) => !v.system.endsWith('/iculogbook/ontology')
   ).length;
-  const codingConfidence = fraction(public_, resolved.length);
+  const codingConfidence = fraction(public_, Math.max(resolved.length, 1));
 
   return { completeness, codingConfidence };
 }

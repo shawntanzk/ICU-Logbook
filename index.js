@@ -1,3 +1,8 @@
+// WebCrypto polyfill must run before any module that imports Supabase.
+// Provides crypto.subtle.digest via expo-crypto so Supabase uses s256 PKCE
+// rather than falling back to plain mode.
+import './src/polyfills/crypto';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

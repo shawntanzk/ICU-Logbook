@@ -22,6 +22,12 @@ interface FormatDef {
 
 const FORMATS: FormatDef[] = [
   {
+    id: 'arcp_csv',
+    title: 'ARCP Portfolio (CSV)',
+    summary: 'Multi-section CSV covering all 10 log types. Open directly in Excel, Numbers or Google Sheets for your ARCP portfolio.',
+    icon: 'document-text-outline',
+  },
+  {
     id: 'fhir',
     title: 'HL7 FHIR R4 Bundle',
     summary: 'Standards-based healthcare interchange. Each case → Encounter + Condition + Observations.',

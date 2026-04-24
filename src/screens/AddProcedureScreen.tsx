@@ -16,6 +16,7 @@ import { useCaseStore } from '../store/caseStore';
 import { useAuthStore } from '../store/authStore';
 import { ProcedureLogSchema, ProcedureLogInput } from '../models/ProcedureLog';
 import { FormField } from '../components/FormField';
+import { SelectField } from '../components/SelectField';
 import { Button } from '../components/Button';
 import { UserPicker } from '../components/UserPicker';
 import { listUsers, ManagedUser } from '../services/AuthService';
@@ -99,25 +100,18 @@ export function AddProcedureScreen({ route, navigation }: ProceduresStackProps<'
           showsVerticalScrollIndicator={false}
         >
           {/* Procedure Type selector */}
-          <Text style={styles.sectionLabel}>Procedure Type <Text style={styles.required}>*</Text></Text>
-          <View style={styles.typeGrid}>
-            {PROCEDURE_TYPES.map((pt) => (
-              <TouchableOpacity
-                key={pt}
-                style={[styles.typeChip, procedureType === pt && styles.typeChipActive]}
-                onPress={() => {
-                  setProcedureType(pt);
-                  if (errors.procedureType) setErrors((e) => ({ ...e, procedureType: undefined }));
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.typeChipText, procedureType === pt && styles.typeChipTextActive]}>
-                  {pt}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {errors.procedureType ? <Text style={styles.error}>{errors.procedureType}</Text> : null}
+          <SelectField
+            label="Procedure Type"
+            required
+            options={PROCEDURE_TYPES.map((pt) => ({ id: pt, label: pt }))}
+            value={procedureType || null}
+            onChange={(v) => {
+              setProcedureType(v ?? '');
+              if (errors.procedureType) setErrors((e) => ({ ...e, procedureType: undefined }));
+            }}
+            placeholder="Select procedure type…"
+            error={errors.procedureType}
+          />
 
           {/* Attempts */}
           <FormField
@@ -229,19 +223,6 @@ const styles = StyleSheet.create({
   content: { padding: SPACING.md, paddingBottom: SPACING.xxl },
   sectionLabel: { fontSize: FONT_SIZE.sm, fontWeight: '600', color: COLORS.text, marginBottom: SPACING.sm },
   required: { color: COLORS.error },
-  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginBottom: SPACING.sm },
-  typeChip: {
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: SPACING.xs + 2,
-    borderRadius: RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  typeChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  typeChipText: { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, fontWeight: '500' },
-  typeChipTextActive: { color: COLORS.white },
   error: { fontSize: FONT_SIZE.xs, color: COLORS.error, marginBottom: SPACING.md },
   successRow: {
     flexDirection: 'row',
