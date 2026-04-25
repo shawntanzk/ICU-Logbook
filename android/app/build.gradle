@@ -93,6 +93,15 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+
+        // 16 KB page-size compliance (Android 15+).
+        // 32-bit ABIs (armeabi-v7a, x86) pre-date the 16 KB requirement and
+        // cannot be made compliant; dropping them from production builds is the
+        // recommended approach. x86_64 is retained for emulator testing.
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+
     }
     signingConfigs {
         debug {
