@@ -1,0 +1,21 @@
+'use client'
+import React from 'react'
+import { useRouter } from 'next/navigation'
+import { RegionalBlockForm } from '@/components/forms/RegionalBlockForm'
+import { Card } from '@/components/ui/Card'
+import Link from 'next/link'
+
+export default function NewRegionalBlockPage() {
+  const router = useRouter()
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div>
+        <Link href="/logs/regional-block" className="text-sm text-primary-700 hover:underline">← Back to regional blocks</Link>
+        <h1 className="text-2xl font-bold text-gray-900 mt-2">New regional block</h1>
+      </div>
+      <Card>
+        <RegionalBlockForm onSuccess={() => router.push('/logs/regional-block')} />
+      </Card>
+    </div>
+  )
+}
