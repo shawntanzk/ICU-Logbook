@@ -108,11 +108,17 @@ GitHub integration. No manual action required.
 
 **CI/CD pipeline** (`.github/workflows/ci.yml`):
 
-| Job | Trigger | What it does |
-|-----|---------|-------------|
-| `test` | Every push / PR | TypeScript typecheck + Jest coverage |
-| `build-android` | Push to `main` only | Triggers EAS Android build (AAB) |
-| `build-ios` | Push to `main` only | Triggers EAS iOS build (IPA) |
+| Job | Trigger | What it does | Status |
+|-----|---------|-------------|--------|
+| `test` | Every push / PR | TypeScript typecheck + Jest coverage | ✅ Active |
+| `build-android` | Push to `main` only | Triggers EAS Android build (AAB) | ✅ Active |
+| `build-ios` | Push to `main` only | Triggers EAS iOS build (IPA) | ⏸ Disabled |
+
+> **iOS builds are disabled** (`if: false` in the workflow) until an Apple Developer
+> account ($99/year) is set up. To re-enable:
+> 1. Enrol at [developer.apple.com](https://developer.apple.com)
+> 2. Run `eas credentials --platform ios` locally to configure signing credentials
+> 3. Remove the `if: false` line from the `build-ios` job in `.github/workflows/ci.yml`
 
 **GitHub Actions secrets required:**
 
