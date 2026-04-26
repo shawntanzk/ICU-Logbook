@@ -41,7 +41,7 @@ Edge Functions, and real-time sync.
 |--------|-------|
 | Console | [supabase.com/dashboard](https://supabase.com/dashboard) |
 | Account | shawntanzhengkai@gmail.com |
-| Project URL | `https://[project-ref].supabase.co` |
+| Project URL | `https://qbkrgjbcizpcunwmzhrq.supabase.co` |
 
 **What lives here:**
 - All clinical data tables (`case_logs`, `procedure_logs`, etc.)
@@ -171,7 +171,7 @@ app and the webapp via Supabase).
 | Setting | Values |
 |---------|--------|
 | Authorised JavaScript Origins | `http://localhost:3000`, `https://icu-logbook-app.signamind.com` |
-| Authorised Redirect URIs | `https://[project-ref].supabase.co/auth/v1/callback` |
+| Authorised Redirect URIs | `https://qbkrgjbcizpcunwmzhrq.supabase.co/auth/v1/callback` |
 
 The Client ID and Client Secret are entered in Supabase under
 Authentication → Providers → Google. They are **never** stored in this repo.
@@ -197,7 +197,7 @@ No infrastructure changes are needed to run locally. Copy `.env.example` to
 
 ```bash
 # webapp/.env.local
-NEXT_PUBLIC_SUPABASE_URL=https://[project-ref].supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://qbkrgjbcizpcunwmzhrq.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[your-anon-key]
 ```
 
