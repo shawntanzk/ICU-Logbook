@@ -21,3 +21,9 @@ web-build/
 .env.local
 
 client_secret*
+
+# Next.js build output
+webapp/.next/
+
+# Jest coverage output
+coverage/
