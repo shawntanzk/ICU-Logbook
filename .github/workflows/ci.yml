@@ -66,10 +66,13 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
   # ── iOS production build (IPA for App Store) ───────────────────────────────
+  # Disabled: requires an Apple Developer account ($99/year) to set up
+  # signing credentials. Re-enable by removing the "if: false" line once
+  # credentials are configured via: eas credentials --platform ios
   build-ios:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: false
     steps:
       - uses: actions/checkout@v4
 
