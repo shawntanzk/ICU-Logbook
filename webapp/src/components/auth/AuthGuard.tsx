@@ -16,13 +16,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Check terms acceptance
-    const termsAccepted = localStorage.getItem('icu_terms_v1')
-    if (!termsAccepted) {
-      router.push('/terms')
-      return
-    }
-
     // Check profile completeness
     supabase
       .from('profiles')

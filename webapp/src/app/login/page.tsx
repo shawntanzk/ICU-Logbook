@@ -31,12 +31,6 @@ export default function LoginPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const termsAccepted = localStorage.getItem('icu_terms_v1')
-    if (!termsAccepted) {
-      router.push('/terms')
-      return
-    }
-
     const { data: profile } = await supabase
       .from('profiles')
       .select('country, med_reg_hmac')
