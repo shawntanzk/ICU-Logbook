@@ -2,6 +2,7 @@
   "expo": {
     "name": "ICU Logbook",
     "slug": "icu-logbook",
+    "owner": "shawntanzk",
     "scheme": "iculogbook",
     "version": "1.0.0",
     "orientation": "portrait",
