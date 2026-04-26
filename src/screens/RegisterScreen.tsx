@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -235,9 +236,15 @@ export function RegisterScreen() {
               </View>
               <Text style={styles.agreeText}>
                 I agree to the{' '}
-                <Text style={styles.link}>Terms of Service</Text>
+                <Text
+                  style={styles.link}
+                  onPress={() => Linking.openURL('https://icu-logbook-app.signamind.com/terms')}
+                >Terms of Service</Text>
                 {' '}and{' '}
-                <Text style={styles.link}>Privacy Policy</Text>
+                <Text
+                  style={styles.link}
+                  onPress={() => Linking.openURL('https://icu-logbook-app.signamind.com/privacy-policy')}
+                >Privacy Policy</Text>
               </Text>
             </TouchableOpacity>
 
