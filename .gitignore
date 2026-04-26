@@ -27,3 +27,4 @@ webapp/.next/
 
 # Jest coverage output
 coverage/
+.env.local

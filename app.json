@@ -75,7 +75,15 @@
       ],
       "expo-asset",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "icu-logbook",
+          "organization": "signamind"
+        }
+      ]
     ]
   }
 }

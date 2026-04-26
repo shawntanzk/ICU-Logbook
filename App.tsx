@@ -12,10 +12,30 @@ import { useGuestStore } from './src/store/guestStore';
 import { initNetworkTracking } from './src/store/networkStore';
 import { initErrorReporting } from './src/services/errorReporting';
 import { COLORS, FONT_SIZE } from './src/utils/constants';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://88362d6c0f2df3e338eee433da22c044@o4511285439299584.ingest.de.sentry.io/4511285443887184',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 type AppState = 'loading' | 'ready' | 'error';
 
-export default function App() {
+export default Sentry.wrap(function App() {
   const [state, setState] = useState<AppState>('loading');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -73,7 +93,7 @@ export default function App() {
       <RootNavigator />
     </SafeAreaProvider>
   );
-}
+});
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background, padding: 24 },
