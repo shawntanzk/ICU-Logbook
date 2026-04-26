@@ -11,6 +11,7 @@ interface SyncStore {
   error: string | null;
 
   sync: () => Promise<void>;
+  forceFullSync: () => Promise<void>;
   refreshStatus: () => Promise<void>;
 }
 
@@ -28,6 +29,22 @@ export const useSyncStore = create<SyncStore>((set) => ({
       set({ isSyncing: false, status, lastResult: { synced: result.synced, failed: result.failed } });
       // After a successful pull-down, refetch local-derived UI state so
       // users see remote edits without needing to swipe-refresh.
+      await Promise.all([
+        useCaseStore.getState().fetchCases(),
+        useProcedureStore.getState().fetchProcedures(),
+      ]);
+    } catch (e) {
+      set({ isSyncing: false, error: e instanceof Error ? e.message : String(e) });
+    }
+  },
+
+  forceFullSync: async () => {
+    set({ isSyncing: true, error: null });
+    try {
+      const result = await SyncService.forceFullSyncFromServer();
+      const status = await SyncService.getSyncStatus();
+      set({ isSyncing: false, status, lastResult: { synced: result.synced, failed: result.failed } });
+      // Reload both stores so the UI immediately reflects the wiped + re-pulled data.
       await Promise.all([
         useCaseStore.getState().fetchCases(),
         useProcedureStore.getState().fetchProcedures(),

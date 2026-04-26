@@ -89,7 +89,7 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'SettingsHome'>;
 export function SettingsScreen({ navigation }: Props) {
   const { cases } = useCaseStore();
   const { procedures } = useProcedureStore();
-  const { isSyncing, status, lastResult, error, sync, refreshStatus } = useSyncStore();
+  const { isSyncing, status, lastResult, error, sync, forceFullSync, refreshStatus } = useSyncStore();
   const { userName, role, logout } = useAuthStore();
   const consentStatus = useConsentStore((s) => s.status);
   const { offlineOnly, setOfflineOnly } = useOfflineStore();
@@ -175,6 +175,31 @@ export function SettingsScreen({ navigation }: Props) {
           : 'Everything is already up to date.'
       );
     }
+  }
+
+  function handleForceFullSync() {
+    Alert.alert(
+      'Reset & re-sync from server',
+      'This will upload any unsaved local changes, then erase all local case and procedure data and replace it with an exact copy from the server.\n\nAnything deleted directly in the database will also be removed here.\n\nContinue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset & re-sync',
+          style: 'destructive',
+          onPress: async () => {
+            await forceFullSync();
+            if (error) {
+              Alert.alert('Sync failed', error);
+            } else if (lastResult) {
+              Alert.alert(
+                'Re-sync complete',
+                `Local data replaced with ${lastResult.synced} record${lastResult.synced !== 1 ? 's' : ''} from the server.`
+              );
+            }
+          },
+        },
+      ]
+    );
   }
 
   function handleLogout() {
@@ -336,6 +361,16 @@ export function SettingsScreen({ navigation }: Props) {
               <Ionicons name="cloud-upload" size={18} color={COLORS.white} />
             )}
             <Text style={styles.syncBtnText}>{isSyncing ? 'Syncing…' : 'Sync Now'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.forceFullSyncBtn, (isSyncing || offlineOnly) && styles.syncBtnDisabled]}
+            onPress={handleForceFullSync}
+            disabled={isSyncing || offlineOnly}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh-circle-outline" size={18} color={COLORS.error} />
+            <Text style={styles.forceFullSyncBtnText}>Reset & re-sync from server</Text>
           </TouchableOpacity>
 
           <View style={styles.syncNote}>
@@ -533,6 +568,18 @@ const styles = StyleSheet.create({
   },
   syncBtnDisabled: { opacity: 0.6 },
   syncBtnText: { fontSize: FONT_SIZE.md, color: COLORS.white, fontWeight: '600' },
+  forceFullSyncBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.error,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm + 2,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  forceFullSyncBtnText: { fontSize: FONT_SIZE.sm, color: COLORS.error, fontWeight: '600' },
   syncNote: { flexDirection: 'row', gap: SPACING.xs, alignItems: 'flex-start' },
   syncNoteText: { flex: 1, fontSize: FONT_SIZE.xs, color: COLORS.textMuted, lineHeight: 17 },
   row: {

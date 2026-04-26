@@ -327,6 +327,53 @@ class SyncServiceImpl implements ISyncService {
     );
   }
 
+  // Force a full 1:1 mirror of Supabase.
+  //
+  // Sequence:
+  //   1. Push any locally-pending rows first so edits aren't lost.
+  //   2. Wipe the pull watermark so the next pull fetches everything.
+  //   3. Delete all local case_logs and procedure_logs (they'll be
+  //      replaced by a full pull in step 4).
+  //   4. Pull all rows from Supabase — no `since` filter.
+  //   5. Update sync timestamps and reload UI stores.
+  //
+  // Hard-deletes done directly in Supabase are handled automatically:
+  // those rows are simply absent from the pull response and are never
+  // re-inserted locally.
+  async forceFullSyncFromServer(): Promise<SyncResult> {
+    if (isOfflineOnly()) return { synced: 0, failed: 0, pending: 0 };
+    if (isGuestMode()) return { synced: 0, failed: 0, pending: 0 };
+    const { userId } = getAuthState();
+    if (!userId) return { synced: 0, failed: 0, pending: 0 };
+
+    const db = await getDatabase();
+
+    // 1. Push pending rows so any local edits reach the server first.
+    const pushedCases = await pushTable('case_logs', CASE_COLUMNS, CASE_JSON_COLS);
+    const pushedProcs = await pushTable('procedure_logs', PROC_COLUMNS, PROC_JSON_COLS);
+
+    // 2. Reset the pull watermark.
+    await db.runAsync(`DELETE FROM app_settings WHERE key = ?`, [LAST_PULL_KEY]);
+
+    // 3. Wipe local clinical tables — the full pull will repopulate them.
+    await db.runAsync(`DELETE FROM case_logs`);
+    await db.runAsync(`DELETE FROM procedure_logs`);
+
+    // 4. Pull everything (since = null ⟹ no timestamp filter).
+    const pulledCases = await pullTable('case_logs', CASE_COLUMNS, CASE_JSON_COLS, null);
+    const pulledProcs = await pullTable('procedure_logs', PROC_COLUMNS, PROC_JSON_COLS, null);
+
+    // 5. Stamp new watermark.
+    const now = nowISO();
+    await setSetting(LAST_PULL_KEY, now);
+    await setSetting(LAST_SYNC_KEY, now);
+
+    const synced = pushedCases.synced + pushedProcs.synced + pulledCases + pulledProcs;
+    const failed = pushedCases.failed + pushedProcs.failed;
+    const status = await this.getSyncStatus();
+    return { synced, failed, pending: status.pendingCount };
+  }
+
   // Resolve "keep remote": pull the server row fresh and replace local.
   async resolveKeepRemote(tableName: TableName, id: string): Promise<void> {
     const db = await getDatabase();

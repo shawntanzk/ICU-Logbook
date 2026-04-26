@@ -27,4 +27,8 @@ export interface SyncStatus {
 export interface ISyncService {
   syncPending(): Promise<SyncResult>;
   getSyncStatus(): Promise<SyncStatus>;
+  /** Push any unsynced local rows, then wipe local tables and re-pull
+   *  everything from the server so local state is a 1:1 mirror of
+   *  Supabase (including hard-deletes done directly in the database). */
+  forceFullSyncFromServer(): Promise<SyncResult>;
 }
