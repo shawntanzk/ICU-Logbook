@@ -3,7 +3,6 @@ import {
   AuthedUser,
   UserRole,
   signIn as svcSignIn,
-  signUp as svcSignUp,
   signInWithGoogle as svcSignInWithGoogle,
   signOut as svcSignOut,
   restoreSession,
@@ -58,7 +57,6 @@ interface AuthStore {
   profileComplete: boolean;
 
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
-  signUp: (input: { email: string; displayName: string; password: string }) => Promise<AuthActionResult>;
   signInWithGoogle: () => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;
   updatePassword: (newPassword: string) => Promise<AuthActionResult>;
@@ -114,24 +112,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
       return { ok: true };
     }
     return { ok: false, error: result.error };
-  },
-
-  signUp: async (input) => {
-    try {
-      const result = await svcSignUp(input);
-      if (result.ok && result.user) {
-        await migrateGuestDataIfNeeded(result.user.id);
-        resetDataStores();
-        apply(set, result.user);
-        return { ok: true };
-      }
-      if (result.needsEmailConfirmation) {
-        return { ok: false, needsEmailConfirmation: true };
-      }
-      return { ok: false, error: result.error ?? 'Could not create account.' };
-    } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : 'Unknown error.' };
-    }
   },
 
   signInWithGoogle: async () => {

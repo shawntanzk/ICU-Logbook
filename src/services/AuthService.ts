@@ -28,8 +28,8 @@ export interface SignInResult {
   ok: boolean;
   user?: AuthedUser;
   error?: string;
-  // Set when signUp succeeded but email-confirmation is required, so
-  // the UI can prompt the user to check their inbox instead of trying
+  // Set when registration succeeded but email-confirmation is required,
+  // so the UI can prompt the user to check their inbox instead of trying
   // to show a session that doesn't exist yet.
   needsEmailConfirmation?: boolean;
 }
@@ -98,34 +98,6 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     await supabase.auth.signOut();
     return { ok: false, error: 'This account has been disabled.' };
   }
-  return { ok: true, user: rowToUser(profile) };
-}
-
-// Self-signup with email + password. The handle_new_user trigger
-// creates the matching profile row. If the project has email
-// confirmation enabled (default), signUp succeeds but no session is
-// returned — the caller should prompt the user to check their inbox.
-export async function signUp(input: {
-  email: string;
-  displayName: string;
-  password: string;
-}): Promise<SignInResult> {
-  const email = input.email.trim().toLowerCase();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password: input.password,
-    options: { data: { display_name: input.displayName.trim() } },
-  });
-  if (error || !data.user) {
-    return { ok: false, error: error?.message ?? 'Sign up failed.' };
-  }
-  if (!data.session) {
-    // Email confirmation required — no session yet.
-    return { ok: false, needsEmailConfirmation: true };
-  }
-  // Session exists → fetch profile and return the signed-in user.
-  const profile = await loadProfile(data.user.id);
-  if (!profile) return { ok: false, error: 'Profile not found after signup.' };
   return { ok: true, user: rowToUser(profile) };
 }
 
