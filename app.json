@@ -60,7 +60,7 @@
     },
     "web": {},
     "extra": {
-      "privacyPolicyUrl": "https://iculogbook.com/privacy",
+      "privacyPolicyUrl": "https://icu-logbook-app.signamind.com/privacy-policy",
       "eas": {
         "projectId": "2d764ae0-4c47-4172-8f0b-dc8f9a5996d5"
       }
