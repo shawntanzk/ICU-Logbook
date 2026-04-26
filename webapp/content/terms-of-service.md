@@ -73,7 +73,7 @@ CSV) are generated on-device and saved only where you choose.
 
 You can view, edit, and delete every record you own at any time within the App. On
 request, we will permanently purge your account and all associated data from our
-servers within 30 days. Contact [privacy@iculogbook.com](mailto:privacy@iculogbook.com).
+servers within 30 days. Contact [icu-logbook@signamind.com](mailto:icu-logbook@signamind.com).
 
 ---
 
@@ -110,7 +110,7 @@ subject to the exclusive jurisdiction of the courts of England and Wales.
 
 ## 12. Contact
 
-Questions about these Terms? Email [privacy@iculogbook.com](mailto:privacy@iculogbook.com).
+Questions about these Terms? Email [icu-logbook@signamind.com](mailto:icu-logbook@signamind.com).
 
 ---
 

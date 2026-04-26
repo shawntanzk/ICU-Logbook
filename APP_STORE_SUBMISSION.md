@@ -29,8 +29,8 @@
 | 10 | Age rating: **4+** (no objectionable content; medical professional app) | 🔧 | Answer questionnaire: select "None" for all categories |
 | 11 | Description: 4,000 character rich description | 🔧 | See draft below |
 | 12 | Keywords: max 100 characters | 🔧 | `ICU,logbook,anaesthesia,critical care,medical training,competency,ARCP,portfolio` |
-| 13 | Support URL | 🔧 | e.g. `https://iculogbook.com/support` |
-| 14 | Marketing URL | 🔧 | e.g. `https://iculogbook.com` |
+| 13 | Support URL | 🔧 | e.g. `icu-logbook@signamind.com` |
+| 14 | Marketing URL | 🔧 | e.g. `https://icu-logbook-app.signamind.com/` |
 | 15 | Privacy Policy URL | 🔧 | Host `docs/privacy-policy.html` — e.g. GitHub Pages URL, then update `app.json → extra.privacyPolicyUrl` |
 
 ### 1.4 Screenshots (Required — cannot be skipped)

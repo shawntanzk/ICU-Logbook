@@ -12,7 +12,7 @@ why, and how it is protected.
 
 ICU Logbook is operated by [YOUR NAME / ORGANISATION].
 
-Contact: [privacy@iculogbook.com](mailto:privacy@iculogbook.com)
+Contact: [icu-logbook@signamind.com](mailto:icu-logbook@signamind.com)
 
 ---
 
@@ -74,7 +74,7 @@ We do **not** sell, rent, or share your data with advertisers or any other third
 
 Your data is retained for as long as your account is active. You may request deletion of
 your account and all associated data at any time by emailing
-[privacy@iculogbook.com](mailto:privacy@iculogbook.com). Data will be permanently deleted
+[icu-logbook@signamind.com](mailto:icu-logbook@signamind.com). Data will be permanently deleted
 within 30 days of a verified deletion request.
 
 ---
@@ -90,7 +90,7 @@ You have the right to:
 - Data portability (CSV export is available in-app)
 - Lodge a complaint with the ICO (UK) or your national supervisory authority
 
-To exercise any of these rights, email [privacy@iculogbook.com](mailto:privacy@iculogbook.com).
+To exercise any of these rights, email [icu-logbook@signamind.com](mailto:icu-logbook@signamind.com).
 
 ---
 
@@ -122,7 +122,7 @@ Continued use of the App after notice constitutes acceptance of the updated poli
 
 ## 11. Contact
 
-Questions or concerns? Email [privacy@iculogbook.com](mailto:privacy@iculogbook.com).
+Questions or concerns? Email [icu-logbook@signamind.com](mailto:icu-logbook@signamind.com).
 
 ---
 
