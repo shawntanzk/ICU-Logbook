@@ -1,9 +1,11 @@
 {
   "/page": "app/page.js",
-  "/login/page": "app/login/page.js",
-  "/terms/page": "app/terms/page.js",
   "/auth/callback/route": "app/auth/callback/route.js",
-  "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/login/page": "app/login/page.js",
   "/(app)/settings/page": "app/(app)/settings/page.js",
-  "/(app)/admin/page": "app/(app)/admin/page.js"
+  "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/admin/page": "app/(app)/admin/page.js",
+  "/(app)/logs/page": "app/(app)/logs/page.js",
+  "/(app)/competency/page": "app/(app)/competency/page.js",
+  "/(app)/export/page": "app/(app)/export/page.js"
 }
