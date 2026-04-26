@@ -16,12 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
+import { useGuestStore } from '../store/guestStore';
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from '../utils/constants';
 import type { RootStackParamList } from '../navigation/types';
 
 export function LoginScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { signIn, signInWithGoogle, sendPasswordReset } = useAuthStore();
+  const { enterGuestMode } = useGuestStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -70,6 +72,16 @@ export function LoginScreen() {
     try {
       const result = await signInWithGoogle();
       if (!result.ok) setError(result.error || 'Google sign-in failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleContinueOffline() {
+    setBusy(true);
+    try {
+      await enterGuestMode();
+      // RootNavigator reacts to isGuest=true and renders MainTabs.
     } finally {
       setBusy(false);
     }
@@ -178,6 +190,25 @@ export function LoginScreen() {
               <Ionicons name="person-add-outline" size={18} color={COLORS.primary} />
               <Text style={styles.registerBtnText}>Create an Account</Text>
             </TouchableOpacity>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.offlineBtn, busy && { opacity: 0.7 }]}
+              onPress={handleContinueOffline}
+              activeOpacity={0.85}
+              disabled={busy}
+            >
+              <Ionicons name="phone-portrait-outline" size={18} color={COLORS.textMuted} />
+              <Text style={styles.offlineBtnText}>Continue without account</Text>
+            </TouchableOpacity>
+            <Text style={styles.offlineHint}>
+              Data stays on this device only. Sign in later to sync to the cloud.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -266,4 +297,19 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   registerBtnText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.primary },
+  offlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  offlineBtnText: { fontSize: FONT_SIZE.sm, fontWeight: '500', color: COLORS.textMuted },
+  offlineHint: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+  },
 });

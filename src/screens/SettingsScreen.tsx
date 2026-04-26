@@ -16,6 +16,7 @@ import { useCaseStore } from '../store/caseStore';
 import { useProcedureStore } from '../store/procedureStore';
 import { useConsentStore } from '../store/consentStore';
 import { useOfflineStore } from '../store/offlineStore';
+import { useGuestStore } from '../store/guestStore';
 import { Card } from '../components/Card';
 import { COLORS, FONT_SIZE, SPACING, RADIUS } from '../utils/constants';
 import { formatDateTime } from '../utils/dateUtils';
@@ -92,6 +93,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { userName, role, logout } = useAuthStore();
   const consentStatus = useConsentStore((s) => s.status);
   const { offlineOnly, setOfflineOnly } = useOfflineStore();
+  const { isGuest, exitGuestMode } = useGuestStore();
 
   const [identities, setIdentities] = useState<LinkedIdentity[]>([]);
   const [identityBusy, setIdentityBusy] = useState(false);
@@ -239,26 +241,59 @@ export function SettingsScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* User card */}
-        <Card style={styles.userCard}>
-          <View style={styles.userAvatar}>
-            <Ionicons
-              name={role === 'admin' ? 'shield' : 'person'}
-              size={28}
-              color={COLORS.white}
-            />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{userName || 'User'}</Text>
-            <Text style={styles.userRole}>
-              {role === 'admin' ? 'Administrator' : 'User'}
-            </Text>
-          </View>
-          <SyncPill pending={status.pendingCount} syncing={isSyncing} />
-        </Card>
+        {/* ── Guest mode banner ──────────────────────────────────────────── */}
+        {isGuest && (
+          <Card style={styles.guestCard}>
+            <View style={styles.guestIconWrap}>
+              <Ionicons name="phone-portrait-outline" size={28} color={COLORS.primary} />
+            </View>
+            <View style={styles.guestInfo}>
+              <Text style={styles.guestTitle}>Offline mode</Text>
+              <Text style={styles.guestBody}>
+                You are using ICU Logbook without an account. All data is stored
+                locally on this device and will never leave it.
+              </Text>
+              <Text style={styles.guestBody} style={{ marginTop: 6 }}>
+                Sign in or create an account to enable cloud sync and access your
+                data across devices. Your existing entries will be migrated automatically.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.guestSignInBtn}
+              onPress={async () => {
+                await exitGuestMode();
+                // RootNavigator will re-render to Login screen automatically.
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="log-in-outline" size={18} color={COLORS.white} />
+              <Text style={styles.guestSignInText}>Sign in to sync</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
 
-        {/* Sync panel */}
-        <Card style={styles.section}>
+        {/* ── Authenticated user card ─────────────────────────────────────── */}
+        {!isGuest && (
+          <Card style={styles.userCard}>
+            <View style={styles.userAvatar}>
+              <Ionicons
+                name={role === 'admin' ? 'shield' : 'person'}
+                size={28}
+                color={COLORS.white}
+              />
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{userName || 'User'}</Text>
+              <Text style={styles.userRole}>
+                {role === 'admin' ? 'Administrator' : 'User'}
+              </Text>
+            </View>
+            <SyncPill pending={status.pendingCount} syncing={isSyncing} />
+          </Card>
+        )}
+
+        {/* Sync panel — hidden for guests */}
+        {!isGuest && <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Cloud Sync</Text>
 
           {/* Offline-only toggle. When on, the app never talks to
@@ -321,76 +356,80 @@ export function SettingsScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Conflicts')}
             destructive={status.conflictCount > 0}
           />
-        </Card>
+        </Card>}
 
-        {/* Data summary */}
+        {/* Data summary — always visible */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Data Summary</Text>
           <SettingRow icon="document-text-outline" label="Total Cases" value={String(cases.length)} />
           <SettingRow icon="medkit-outline" label="Total Procedures" value={String(procedures.length)} />
         </Card>
 
-        {/* Data management */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Sharing & Export</Text>
-          <SettingRow
-            icon="shield-checkmark-outline"
-            label="Data sharing consent"
-            value={
-              consentStatus === 'none'
-                ? 'Private'
-                : consentStatus.charAt(0).toUpperCase() + consentStatus.slice(1)
-            }
-            onPress={handleConsent}
-          />
-          <SettingRow
-            icon="download-outline"
-            label="Export (FHIR / openEHR / JSON-LD)"
-            onPress={handleExport}
-          />
-          <SettingRow
-            icon="trash-outline"
-            label="Delete my account"
-            onPress={handleDeleteAccount}
-            destructive
-          />
-        </Card>
+        {/* Data management — hidden for guests (no account to delete, consent not relevant) */}
+        {!isGuest && (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Data Sharing & Export</Text>
+            <SettingRow
+              icon="shield-checkmark-outline"
+              label="Data sharing consent"
+              value={
+                consentStatus === 'none'
+                  ? 'Private'
+                  : consentStatus.charAt(0).toUpperCase() + consentStatus.slice(1)
+              }
+              onPress={handleConsent}
+            />
+            <SettingRow
+              icon="download-outline"
+              label="Export (FHIR / openEHR / JSON-LD)"
+              onPress={handleExport}
+            />
+            <SettingRow
+              icon="trash-outline"
+              label="Delete my account"
+              onPress={handleDeleteAccount}
+              destructive
+            />
+          </Card>
+        )}
 
-        {/* Sign-in methods — link / unlink Google (Supabase identity linking) */}
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Sign-in Methods</Text>
+        {/* Sign-in methods — hidden for guests */}
+        {!isGuest && (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Sign-in Methods</Text>
 
-          <SettingRow
-            icon="mail-outline"
-            label="Email & Password"
-            value={hasEmail ? 'Linked' : 'Not linked'}
-          />
+            <SettingRow
+              icon="mail-outline"
+              label="Email & Password"
+              value={hasEmail ? 'Linked' : 'Not linked'}
+            />
 
-          <SettingRow
-            icon="logo-google"
-            label={googleLinked ? 'Google — unlink' : 'Link Google account'}
-            value={googleLinked ? 'Linked' : undefined}
-            onPress={googleLinked ? handleUnlinkGoogle : handleLinkGoogle}
-            loading={identityBusy}
-            destructive={googleLinked}
-          />
+            <SettingRow
+              icon="logo-google"
+              label={googleLinked ? 'Google — unlink' : 'Link Google account'}
+              value={googleLinked ? 'Linked' : undefined}
+              onPress={googleLinked ? handleUnlinkGoogle : handleLinkGoogle}
+              loading={identityBusy}
+              destructive={googleLinked}
+            />
 
-          <SettingRow
-            icon="key-outline"
-            label="Change password"
-            onPress={() => navigation.navigate('ChangePassword')}
-          />
+            <SettingRow
+              icon="key-outline"
+              label="Change password"
+              onPress={() => navigation.navigate('ChangePassword')}
+            />
 
-          <View style={styles.syncNote}>
-            <Ionicons name="information-circle-outline" size={13} color={COLORS.textMuted} />
-            <Text style={styles.syncNoteText}>
-              Linking Google lets you sign into this same account with either method. You can link or unlink at any time.
-            </Text>
-          </View>
-        </Card>
+            <View style={styles.syncNote}>
+              <Ionicons name="information-circle-outline" size={13} color={COLORS.textMuted} />
+              <Text style={styles.syncNoteText}>
+                Linking Google lets you sign into this same account with either method. You can link or unlink at any time.
+              </Text>
+            </View>
+          </Card>
+        )}
 
         {/* Admin — only visible to admins */}
-        {role === 'admin' && (
+        {!isGuest && role === 'admin' && (
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Administration</Text>
             <SettingRow
@@ -410,11 +449,13 @@ export function SettingsScreen({ navigation }: Props) {
           <SettingRow icon="code-slash-outline" label="Built with" value="React Native · Expo" />
         </Card>
 
-        {/* Sign out */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
-          <Text style={styles.logoutBtnText}>Sign Out</Text>
-        </TouchableOpacity>
+        {/* Sign out — only for authenticated users */}
+        {!isGuest && (
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+            <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
+            <Text style={styles.logoutBtnText}>Sign Out</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.footer}>
           ICU Logbook is designed to support clinical training documentation.{'\n'}
@@ -515,6 +556,33 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   logoutBtnText: { fontSize: FONT_SIZE.md, color: COLORS.error, fontWeight: '600' },
+  guestCard: {
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  guestIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.primaryLight ?? '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.xs,
+  },
+  guestInfo: { flex: 1 },
+  guestTitle: { fontSize: FONT_SIZE.md, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  guestBody: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted, lineHeight: 20 },
+  guestSignInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm + 4,
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  guestSignInText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.white },
   footer: {
     fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,

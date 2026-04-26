@@ -15,6 +15,8 @@ import { setAuthState } from '../services/authState';
 import { setReportingUser } from '../services/errorReporting';
 import { useCaseStore } from './caseStore';
 import { useProcedureStore } from './procedureStore';
+import { useGuestStore } from './guestStore';
+import { reAttributeLocalData } from '../database/client';
 
 export type { UserRole };
 
@@ -24,6 +26,18 @@ export type { UserRole };
 function resetDataStores(): void {
   useCaseStore.setState({ cases: [], domainCounts: {}, casesThisMonth: 0, error: null });
   useProcedureStore.setState({ procedures: [], successRate: 0, typeCounts: {}, error: null });
+}
+
+/**
+ * If the user was in guest mode, migrate all locally-created rows from
+ * the guest localUserId to the real Supabase userId before logging in.
+ * This is a no-op when not in guest mode.
+ */
+async function migrateGuestDataIfNeeded(newUserId: string): Promise<void> {
+  const { isGuest, localUserId, exitGuestMode } = useGuestStore.getState();
+  if (!isGuest || !localUserId || localUserId === newUserId) return;
+  await reAttributeLocalData(localUserId, newUserId);
+  await exitGuestMode();
 }
 
 export interface AuthActionResult {
@@ -94,6 +108,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signIn: async (email, password) => {
     const result = await svcSignIn(email, password);
     if (result.ok && result.user) {
+      await migrateGuestDataIfNeeded(result.user.id);
       resetDataStores();
       apply(set, result.user);
       return { ok: true };
@@ -105,6 +120,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const result = await svcSignUp(input);
       if (result.ok && result.user) {
+        await migrateGuestDataIfNeeded(result.user.id);
         resetDataStores();
         apply(set, result.user);
         return { ok: true };
@@ -122,6 +138,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const result = await svcSignInWithGoogle();
       if (result.ok && result.user) {
+        await migrateGuestDataIfNeeded(result.user.id);
         resetDataStores();
         apply(set, result.user);
         return { ok: true };

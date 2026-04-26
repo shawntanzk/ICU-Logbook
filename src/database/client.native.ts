@@ -32,3 +32,39 @@ export async function wipeLocalData(): Promise<void> {
     DELETE FROM app_settings;
   `);
 }
+
+// All clinical tables that carry an owner_id column.
+const OWNED_TABLES = [
+  'case_logs',
+  'procedure_logs',
+  'airway_logs',
+  'arterial_line_logs',
+  'cvc_logs',
+  'uss_logs',
+  'regional_block_logs',
+  'ward_review_logs',
+  'transfer_logs',
+  'ed_attendance_logs',
+  'medicine_placement_logs',
+] as const;
+
+/**
+ * Re-assigns every locally-owned row from `fromUserId` to `toUserId`.
+ * Called when a guest user signs in or signs up — their offline data
+ * migrates to their new Supabase account so the next sync uploads it.
+ * Sets synced = 0 on all re-attributed rows so SyncService picks them up.
+ */
+export async function reAttributeLocalData(
+  fromUserId: string,
+  toUserId: string,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    for (const table of OWNED_TABLES) {
+      await db.runAsync(
+        `UPDATE ${table} SET owner_id = ?, synced = 0 WHERE owner_id = ?`,
+        [toUserId, fromUserId],
+      );
+    }
+  });
+}
