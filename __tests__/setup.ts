@@ -1,40 +1,46 @@
-// Jest setup file
+// Jest setup file — loaded as a setupFilesAfterEnv entry.
+// @testing-library/jest-native matchers (toBeVisible, toHaveText, etc.)
 import '@testing-library/react-native/extend-expect';
 
-// Mock React Native modules that aren't available in Jest
-jest.mock('react-native', () => {
-  const reactNative = require('react-native/jest/mock');
-  return {
-    ...reactNative,
-    Platform: {
-      select: jest.fn((obj) => obj.ios || obj.default),
-    },
-  };
-});
-
+// expo-sqlite: minimal stub so service tests can import without a native DB.
 jest.mock('expo-sqlite', () => ({
-  openDatabase: jest.fn(() => ({
-    transaction: jest.fn((cb) => cb(jest.fn())),
-
-    getAllAsync: jest.fn(),
-    getFirstRowAsync: jest.fn(),
-    execAsync: jest.fn(),
-  })),
+  openDatabaseAsync: jest.fn(() =>
+    Promise.resolve({
+      getAllAsync: jest.fn(() => Promise.resolve([])),
+      getFirstAsync: jest.fn(() => Promise.resolve(null)),
+      runAsync: jest.fn(() => Promise.resolve()),
+      execAsync: jest.fn(() => Promise.resolve()),
+      withTransactionAsync: jest.fn((cb: () => Promise<void>) => cb()),
+    })
+  ),
 }));
 
 jest.mock('expo-crypto', () => ({
-  getRandomUUID: jest.fn(() => 'test-uuid'),
+  randomUUID: jest.fn(() => 'test-uuid-1234-5678-9abc-def012345678'),
+  getRandomValues: jest.fn((arr: Uint8Array) => arr),
 }));
 
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
-    from: jest.fn(),
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null })),
+      order: jest.fn().mockReturnThis(),
+    })),
     auth: {
-      getSession: jest.fn(),
+      getSession: jest.fn(() => Promise.resolve({ data: { session: null } })),
       signInWithPassword: jest.fn(),
       signUp: jest.fn(),
       signOut: jest.fn(),
-      currentUser: null,
+      getUser: jest.fn(() => Promise.resolve({ data: { user: null } })),
+      onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    },
+    functions: {
+      invoke: jest.fn(),
     },
   })),
 }));

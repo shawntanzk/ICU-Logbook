@@ -27,7 +27,9 @@ if (typeof globalThis.crypto === 'undefined') {
 if (typeof globalThis.crypto.getRandomValues === 'undefined') {
   // @ts-expect-error: patching non-standard global
   globalThis.crypto.getRandomValues = <T extends ArrayBufferView>(array: T): T => {
-    return ExpoCrypto.getRandomValues(array);
+    // expo-crypto's overloads are narrower than the Web Crypto spec; cast through
+    // unknown to bridge the gap without suppressing the entire strict check.
+    return ExpoCrypto.getRandomValues(array as unknown as Uint8Array) as unknown as T;
   };
 }
 

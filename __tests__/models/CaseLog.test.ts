@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
-import { describe, it, expect } from 'jest';
+// jest globals (describe, it, expect) are injected by the test runner — no import needed.
 
 describe('Zod validation - CaseLog', () => {
   it('validates case log with all required fields', () => {

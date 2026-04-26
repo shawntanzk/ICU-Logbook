@@ -127,6 +127,10 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
     ]);
   }
 
+  function handleAISummary() {
+    Alert.alert('AI Clinical Summary', 'This feature is coming soon — stay tuned!');
+  }
+
   function handleDelete() {
     Alert.alert('Delete Case', 'This action cannot be undone. Continue?', [
       { text: 'Cancel', style: 'cancel' },

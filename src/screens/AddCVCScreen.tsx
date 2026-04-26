@@ -27,7 +27,7 @@ type FieldErrors = Partial<Record<keyof CVCLogInput, string>>;
 
 const EMPTY_FORM: CVCLogInput = {
   date: todayISO(),
-  site: undefined,
+  site: '' as string,
   ussGuided: false,
   isSecondCVC: false,
   isVascath: false,

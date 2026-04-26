@@ -17,3 +17,10 @@ export async function initializeDatabase(): Promise<void> {
 export async function wipeLocalData(): Promise<void> {
   // No-op on web — nothing was persisted there to begin with.
 }
+
+export async function reAttributeLocalData(
+  _fromUserId: string,
+  _toUserId: string,
+): Promise<void> {
+  // No-op on web — SQLite guest data does not exist on this platform.
+}

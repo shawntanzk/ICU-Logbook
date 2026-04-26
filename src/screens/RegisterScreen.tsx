@@ -43,7 +43,7 @@ export function RegisterScreen() {
     if (!email.trim() || !email.includes('@')) return 'Please enter a valid email address.';
     if (password.length < 8) return 'Password must be at least 8 characters.';
     if (password !== confirmPassword) return 'Passwords do not match.';
-    if (pwScore < 2) return 'Please choose a stronger password.';
+    if (pwScore.score < 2) return 'Please choose a stronger password.';
     if (!country) return 'Please select your country.';
     if (!medRegNumber.trim() || medRegNumber.trim().length < 2) {
       return 'Please enter your medical registration number.';

@@ -27,7 +27,7 @@ type FieldErrors = Partial<Record<keyof RegionalBlockLogInput, string>>;
 
 const EMPTY_FORM: RegionalBlockLogInput = {
   date: todayISO(),
-  blockType: undefined,
+  blockType: '' as string,
   blockTypeOther: '',
   ussGuided: true,
   catheter: false,

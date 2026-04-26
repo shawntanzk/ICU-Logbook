@@ -29,7 +29,7 @@ type FieldErrors = Partial<Record<keyof MedicinePlacementLogInput, string>>;
 const EMPTY_FORM: MedicinePlacementLogInput = {
   startDate: todayISO(),
   endDate: undefined,
-  specialty: undefined,
+  specialty: '' as string,
   hospital: '',
   ward: '',
   patientCount: undefined,

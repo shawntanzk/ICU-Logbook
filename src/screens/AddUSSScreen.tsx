@@ -27,7 +27,7 @@ type FieldErrors = Partial<Record<keyof USSLogInput, string>>;
 
 const EMPTY_FORM: USSLogInput = {
   date: todayISO(),
-  studyType: undefined,
+  studyType: '' as string,
   performed: true,
   formalReport: false,
   findings: '',

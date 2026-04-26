@@ -14,9 +14,9 @@ export const AirwayLogSchema = z.object({
 
   // RSI / Induction
   isRsi: z.boolean().default(false),
-  inductionAgent: z.enum(RSI_INDUCTION_AGENTS as [string, ...string[]]).optional(),
+  inductionAgent: z.enum(RSI_INDUCTION_AGENTS as unknown as [string, ...string[]]).optional(),
   inductionAgentOther: z.string().max(100).optional(),
-  neuromuscularAgent: z.enum(RSI_NEUROMUSCULAR_AGENTS as [string, ...string[]]).optional(),
+  neuromuscularAgent: z.enum(RSI_NEUROMUSCULAR_AGENTS as unknown as [string, ...string[]]).optional(),
   neuromuscularAgentOther: z.string().max(100).optional(),
 
   // Intubation

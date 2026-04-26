@@ -310,7 +310,7 @@ export interface ManagedUser extends AuthedUser {
 export async function listUsers(): Promise<ManagedUser[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, display_name, role, disabled, created_at')
+    .select('id, email, display_name, role, disabled, created_at, country, med_reg_hmac')
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
@@ -320,6 +320,8 @@ export async function listUsers(): Promise<ManagedUser[]> {
     role: r.role,
     disabled: !!r.disabled,
     createdAt: r.created_at,
+    country: r.country ?? null,
+    profileComplete: !!r.country && !!r.med_reg_hmac,
   }));
 }
 

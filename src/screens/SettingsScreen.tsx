@@ -253,7 +253,7 @@ export function SettingsScreen({ navigation }: Props) {
                 You are using ICU Logbook without an account. All data is stored
                 locally on this device and will never leave it.
               </Text>
-              <Text style={styles.guestBody} style={{ marginTop: 6 }}>
+              <Text style={[styles.guestBody, { marginTop: 6 }]}>
                 Sign in or create an account to enable cloud sync and access your
                 data across devices. Your existing entries will be migrated automatically.
               </Text>

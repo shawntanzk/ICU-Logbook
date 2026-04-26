@@ -1,4 +1,4 @@
-import { generateUUID } from '../uuid';
+import { generateUUID } from '../../utils/uuid';
 
 describe('UUID', () => {
   it('generates a valid UUID v4 string', () => {

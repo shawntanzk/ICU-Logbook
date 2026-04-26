@@ -27,7 +27,7 @@ type FieldErrors = Partial<Record<keyof ArterialLineLogInput, string>>;
 
 const EMPTY_FORM: ArterialLineLogInput = {
   date: todayISO(),
-  site: undefined,
+  site: '' as string,
   ussGuided: false,
   attempts: 1,
   success: true,
