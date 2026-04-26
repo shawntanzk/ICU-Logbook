@@ -13,50 +13,32 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
-import { PasswordStrengthMeter, scorePassword } from '../components/PasswordStrengthMeter';
+import { useGuestStore } from '../store/guestStore';
 import { COLORS, FONT_SIZE, RADIUS, SPACING } from '../utils/constants';
-
-type Mode = 'signIn' | 'signUp';
+import type { RootStackParamList } from '../navigation/types';
 
 export function LoginScreen() {
-  const { signIn, signUp, signInWithGoogle, sendPasswordReset } = useAuthStore();
-  const [mode, setMode] = useState<Mode>('signIn');
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { signIn, signInWithGoogle, sendPasswordReset } = useAuthStore();
+  const { enterGuestMode } = useGuestStore();
+
   const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const isSignUp = mode === 'signUp';
-
-  function toggleMode() {
-    setMode(isSignUp ? 'signIn' : 'signUp');
-    setError('');
-  }
-
-  async function handleSubmit() {
+  async function handleSignIn() {
     setError('');
     if (!email.trim()) { setError('Please enter your email.'); return; }
     if (!password) { setError('Please enter your password.'); return; }
-    if (isSignUp && !displayName.trim()) { setError('Please enter your name.'); return; }
-    if (isSignUp && password.length < 8) { setError('Password must be at least 8 characters.'); return; }
 
     setBusy(true);
     try {
-      const result = isSignUp
-        ? await signUp({ email, displayName, password })
-        : await signIn(email, password);
-      if (result.ok) return;
-      if (result.needsEmailConfirmation) {
-        Alert.alert(
-          'Check your inbox',
-          'We sent a confirmation link to your email. Click it, then return here to sign in.'
-        );
-        setMode('signIn');
-        return;
-      }
-      setError(result.error || (isSignUp ? 'Sign up failed.' : 'Sign in failed.'));
+      const result = await signIn(email, password);
+      if (!result.ok) setError(result.error ?? 'Sign in failed.');
     } finally {
       setBusy(false);
     }
@@ -74,7 +56,7 @@ export function LoginScreen() {
       if (result.ok) {
         Alert.alert(
           'Reset link sent',
-          'Check your inbox for a link to reset your password. Open it on this device to come back in.'
+          'Check your inbox for a link to reset your password.',
         );
       } else {
         setError(result.error ?? 'Could not send reset email.');
@@ -90,6 +72,16 @@ export function LoginScreen() {
     try {
       const result = await signInWithGoogle();
       if (!result.ok) setError(result.error || 'Google sign-in failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleContinueOffline() {
+    setBusy(true);
+    try {
+      await enterGuestMode();
+      // RootNavigator reacts to isGuest=true and renders MainTabs.
     } finally {
       setBusy(false);
     }
@@ -111,25 +103,7 @@ export function LoginScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
-
-            {isSignUp && (
-              <>
-                <Text style={styles.label}>Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Dr. Jane Doe"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={displayName}
-                  onChangeText={(v) => { setDisplayName(v); setError(''); }}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  editable={!busy}
-                />
-                <View style={{ height: SPACING.md }} />
-              </>
-            )}
+            <Text style={styles.cardTitle}>Sign In</Text>
 
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -148,7 +122,7 @@ export function LoginScreen() {
             <Text style={[styles.label, { marginTop: SPACING.md }]}>Password</Text>
             <TextInput
               style={styles.input}
-              placeholder={isSignUp ? 'At least 8 characters' : '••••••••'}
+              placeholder="••••••••"
               placeholderTextColor={COLORS.textMuted}
               value={password}
               onChangeText={(v) => { setPassword(v); setError(''); }}
@@ -156,27 +130,23 @@ export function LoginScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="done"
-              onSubmitEditing={handleSubmit}
+              onSubmitEditing={handleSignIn}
               editable={!busy}
             />
 
-            {isSignUp && <PasswordStrengthMeter password={password} />}
-
-            {!isSignUp && (
-              <TouchableOpacity
-                style={styles.forgotBtn}
-                onPress={handleForgotPassword}
-                disabled={busy}
-              >
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.forgotBtn}
+              onPress={handleForgotPassword}
+              disabled={busy}
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
               style={[styles.primaryBtn, busy && { opacity: 0.7 }]}
-              onPress={handleSubmit}
+              onPress={handleSignIn}
               activeOpacity={0.85}
               disabled={busy}
             >
@@ -184,9 +154,7 @@ export function LoginScreen() {
                 <ActivityIndicator color={COLORS.white} />
               ) : (
                 <>
-                  <Text style={styles.primaryBtnText}>
-                    {isSignUp ? 'Create Account' : 'Sign In'}
-                  </Text>
+                  <Text style={styles.primaryBtnText}>Sign In</Text>
                   <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
                 </>
               )}
@@ -208,14 +176,39 @@ export function LoginScreen() {
               <Text style={styles.googleBtnText}>Continue with Google</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={toggleMode} disabled={busy} style={styles.toggleRow}>
-              <Text style={styles.toggleText}>
-                {isSignUp ? 'Already have an account? ' : 'New here? '}
-                <Text style={styles.toggleLink}>
-                  {isSignUp ? 'Sign in' : 'Create an account'}
-                </Text>
-              </Text>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.registerBtn, busy && { opacity: 0.7 }]}
+              onPress={() => navigation.navigate('Register')}
+              activeOpacity={0.85}
+              disabled={busy}
+            >
+              <Ionicons name="person-add-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.registerBtnText}>Create an Account</Text>
             </TouchableOpacity>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.offlineBtn, busy && { opacity: 0.7 }]}
+              onPress={handleContinueOffline}
+              activeOpacity={0.85}
+              disabled={busy}
+            >
+              <Ionicons name="phone-portrait-outline" size={18} color={COLORS.textMuted} />
+              <Text style={styles.offlineBtnText}>Continue without account</Text>
+            </TouchableOpacity>
+            <Text style={styles.offlineHint}>
+              Data stays on this device only. Sign in later to sync to the cloud.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -291,7 +284,32 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   googleBtnText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.text },
-  toggleRow: { alignItems: 'center', marginTop: SPACING.lg },
-  toggleText: { fontSize: FONT_SIZE.sm, color: COLORS.textMuted },
-  toggleLink: { color: COLORS.primary, fontWeight: '700' },
+  registerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+    minHeight: 52,
+  },
+  registerBtnText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: COLORS.primary },
+  offlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  offlineBtnText: { fontSize: FONT_SIZE.sm, fontWeight: '500', color: COLORS.textMuted },
+  offlineHint: {
+    fontSize: FONT_SIZE.xs,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+  },
 });

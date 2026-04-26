@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ICU Logbook — Registration Validator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #1a5c96;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; color: #1a1a1a; }
+    h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px; }
+    p.subtitle { font-size: 14px; color: #666; margin: 0 0 28px; line-height: 1.5; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 15px;
+      color: #1a1a1a;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #1a5c96; }
+    .field { margin-bottom: 18px; }
+    .hint { font-size: 12px; color: #888; margin-top: 5px; }
+    button {
+      width: 100%;
+      background: #1a5c96;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 8px;
+    }
+    button:hover { background: #154a7a; }
+    button:disabled { background: #99b8d4; cursor: not-allowed; }
+    .result {
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 10px;
+      font-size: 15px;
+      display: none;
+    }
+    .result.found {
+      background: #e8f5e9;
+      border: 1.5px solid #4caf50;
+      color: #1b5e20;
+    }
+    .result.not-found {
+      background: #fff3e0;
+      border: 1.5px solid #ff9800;
+      color: #e65100;
+    }
+    .result.error {
+      background: #fce4ec;
+      border: 1.5px solid #e91e63;
+      color: #880e4f;
+    }
+    .result-icon { font-size: 24px; margin-bottom: 6px; }
+    .result-title { font-weight: 700; margin-bottom: 4px; }
+    .result-detail { font-size: 13px; opacity: 0.8; }
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 28px 0;
+    }
+    .security-note {
+      font-size: 12px;
+      color: #888;
+      line-height: 1.6;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 8px;
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">♥</div>
+    <span class="logo-text">ICU Logbook</span>
+  </div>
+
+  <h1>Registration Validator</h1>
+  <p class="subtitle">
+    Authorised verifiers can check whether a medical registration number is
+    associated with an active ICU Logbook account. No personal data is returned.
+  </p>
+
+  <div class="field">
+    <label for="secret">Validator Secret</label>
+    <input type="password" id="secret" placeholder="Paste the validator secret…" autocomplete="off" />
+    <p class="hint">Issued separately to authorised validators. Do not share.</p>
+  </div>
+
+  <div class="field">
+    <label for="regnum">Medical Registration Number</label>
+    <input type="text" id="regnum" placeholder="e.g. 1234567 or GMC1234567" autocomplete="off"
+           style="text-transform:uppercase" />
+    <p class="hint">Spaces and capitalisation are normalised automatically.</p>
+  </div>
+
+  <button id="checkBtn" onclick="checkRegistration()">Check Registration</button>
+
+  <div class="result" id="result">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-detail" id="resultDetail"></div>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="security-note">
+    🔒 <strong>Privacy &amp; Security:</strong> This tool sends the registration number to our
+    server over HTTPS. The server computes an HMAC-SHA256 hash and compares it to stored hashes —
+    the original number is never stored in our database, and this tool cannot reveal the registrant's
+    name, email, or any clinical data.
+  </div>
+</div>
+
+<script>
+  // ── Configuration ────────────────────────────────────────────────────────────
+  // Replace with your actual Supabase project URL.
+  const SUPABASE_FUNCTION_URL = 'https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/validate-registration';
+
+  async function checkRegistration() {
+    const secret = document.getElementById('secret').value.trim();
+    const regNum = document.getElementById('regnum').value.trim();
+    const btn    = document.getElementById('checkBtn');
+    const result = document.getElementById('result');
+
+    if (!secret) { showResult('error', '⚠️', 'Validator secret required', 'Enter the validator secret above.'); return; }
+    if (!regNum)  { showResult('error', '⚠️', 'Registration number required', 'Enter a registration number to check.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Checking…';
+    result.style.display = 'none';
+
+    try {
+      const resp = await fetch(SUPABASE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Validator-Secret': secret,
+        },
+        body: JSON.stringify({ med_reg_number: regNum }),
+      });
+
+      if (resp.status === 403) {
+        showResult('error', '🚫', 'Access denied', 'The validator secret is incorrect.');
+        return;
+      }
+
+      const data = await resp.json();
+
+      if (!resp.ok || data.error) {
+        showResult('error', '❌', 'Error', data.error ?? 'Unexpected server error.');
+        return;
+      }
+
+      if (data.found) {
+        const country  = data.country ?? 'Unknown';
+        const regDate  = data.registered_at
+          ? new Date(data.registered_at).toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' })
+          : 'Unknown';
+        showResult('found', '✅', 'Registration found',
+          `Country: ${country} · Registered: ${regDate}`);
+      } else {
+        showResult('not-found', '⚠️', 'Not found',
+          'No ICU Logbook account is associated with this registration number.');
+      }
+    } catch (err) {
+      showResult('error', '❌', 'Network error', 'Could not reach the server. Check your connection.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Check Registration';
+    }
+  }
+
+  function showResult(type, icon, title, detail) {
+    const el = document.getElementById('result');
+    el.className = 'result ' + type;
+    el.style.display = 'block';
+    document.getElementById('resultIcon').textContent  = icon;
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultDetail').textContent = detail;
+  }
+
+  // Allow Enter key to trigger check
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkRegistration();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Splash screen: white background, dark logo centred.
+     Expo shows this at contain size so keep ample padding. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1284 2778" width="1284" height="2778">
+  <defs>
+    <filter id="glow" x="-25%" y="-100%" width="150%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- White background (matches app.json splash backgroundColor) -->
+  <rect width="1284" height="2778" fill="#FFFFFF"/>
+
+  <!-- Dark pill / card behind logo for visual anchoring -->
+  <rect x="192" y="1080" width="900" height="620" rx="60" fill="#0F2744"/>
+
+  <!-- ICU text on dark card -->
+  <text
+    x="642" y="1384"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="260"
+    font-weight="900"
+    fill="#FFFFFF"
+    text-anchor="middle">ICU</text>
+
+  <!-- ECG line on dark card -->
+  <polyline
+    filter="url(#glow)"
+    points="
+      210,1460
+      330,1460
+      350,1440
+      370,1460
+      404,1460
+      420,1476
+      436,1340
+      452,1476
+      468,1460
+      500,1460
+      524,1432
+      550,1460
+      1074,1460"
+    fill="none"
+    stroke="#38BDF8"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- LOGBOOK on dark card -->
+  <text
+    x="642" y="1560"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="52"
+    font-weight="300"
+    fill="#7DD3FC"
+    text-anchor="middle"
+    letter-spacing="16">LOGBOOK</text>
+
+  <!-- Tagline below card -->
+  <text
+    x="642" y="1780"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="36"
+    font-weight="400"
+    fill="#64748B"
+    text-anchor="middle">Clinical logbook for ICU trainees</text>
+</svg>

@@ -9,6 +9,7 @@ import { NetworkBanner } from '../components/NetworkBanner';
 
 import { COLORS, FONT_SIZE } from '../utils/constants';
 import { useAuthStore } from '../store/authStore';
+import { useGuestStore } from '../store/guestStore';
 import { useTermsStore, TERMS_VERSION } from '../store/termsStore';
 import {
   TabParamList,
@@ -22,6 +23,8 @@ import {
 
 // ── Screens ──────────────────────────────────────────────────────────────────
 import { LoginScreen } from '../screens/LoginScreen';
+import { RegisterScreen } from '../screens/RegisterScreen';
+import { CompleteRegistrationScreen } from '../screens/CompleteRegistrationScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { CompetencyScreen } from '../screens/CompetencyScreen';
 import { CaseListScreen } from '../screens/CaseListScreen';
@@ -189,7 +192,8 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, profileComplete } = useAuthStore();
+  const { isGuest } = useGuestStore();
   const acceptedVersion = useTermsStore((s) => s.acceptedVersion);
   const termsAccepted = acceptedVersion === TERMS_VERSION;
 
@@ -197,11 +201,20 @@ export function RootNavigator() {
     <NavigationContainer>
       <View style={{ flex: 1 }}>
         <Root.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-          {!isLoggedIn ? (
-            <Root.Screen name="Login" component={LoginScreen} />
-          ) : !termsAccepted ? (
+          {!isLoggedIn && !isGuest ? (
+            // ── Unauthenticated: Login + Register reachable from each other ──
+            <>
+              <Root.Screen name="Login" component={LoginScreen} />
+              <Root.Screen name="Register" component={RegisterScreen} />
+            </>
+          ) : !isGuest && !termsAccepted ? (
+            // ── Terms gate (skipped for guests — data stays on-device) ──────
             <Root.Screen name="Terms" component={TermsScreen} />
+          ) : !isGuest && !profileComplete ? (
+            // ── Profile completion gate (Google OAuth / incomplete signup) ──
+            <Root.Screen name="CompleteRegistration" component={CompleteRegistrationScreen} />
           ) : (
+            // ── Main app (fully authenticated OR offline guest) ────────────
             <Root.Screen name="Main" component={MainTabs} />
           )}
         </Root.Navigator>

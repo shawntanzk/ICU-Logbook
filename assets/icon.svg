@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient: deep navy to darker navy -->
+    <radialGradient id="bg" cx="50%" cy="42%" r="72%">
+      <stop offset="0%" stop-color="#1E4080"/>
+      <stop offset="100%" stop-color="#091A35"/>
+    </radialGradient>
+    <!-- Soft glow for ECG line -->
+    <filter id="glow" x="-25%" y="-100%" width="150%" height="300%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Subtle horizontal rule below ICU text area -->
+  <line x1="80" y1="530" x2="944" y2="530" stroke="#1E3A6A" stroke-width="1"/>
+
+  <!-- ICU — dominant text -->
+  <text
+    x="512" y="468"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="310"
+    font-weight="900"
+    fill="#FFFFFF"
+    text-anchor="middle">ICU</text>
+
+  <!-- ECG heartbeat line (PQRST complex) -->
+  <polyline
+    filter="url(#glow)"
+    points="
+      80,580
+      220,580
+      248,554
+      276,580
+      322,580
+      345,604
+      368,358
+      391,604
+      414,580
+      456,580
+      490,530
+      526,580
+      944,580"
+    fill="none"
+    stroke="#38BDF8"
+    stroke-width="22"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- LOGBOOK label -->
+  <text
+    x="512" y="726"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="70"
+    font-weight="300"
+    fill="#7DD3FC"
+    text-anchor="middle"
+    letter-spacing="20">LOGBOOK</text>
+</svg>

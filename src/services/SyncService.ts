@@ -2,6 +2,7 @@ import { ISyncService, SyncResult, SyncStatus } from './DataService';
 import { getDatabase } from '../database/client';
 import { supabase } from './supabase';
 import { isOfflineOnly } from '../store/offlineStore';
+import { isGuestMode } from '../store/guestStore';
 import { getAuthState } from './authState';
 import { getSetting, setSetting } from './SettingsService';
 import { nowISO } from '../utils/dateUtils';
@@ -238,6 +239,7 @@ class SyncServiceImpl implements ISyncService {
   // callers can fire-and-forget after every write without extra checks.
   async syncPending(): Promise<SyncResult> {
     if (isOfflineOnly()) return { synced: 0, failed: 0, pending: 0 };
+    if (isGuestMode()) return { synced: 0, failed: 0, pending: 0 };
     const { userId } = getAuthState();
     if (!userId) return { synced: 0, failed: 0, pending: 0 };
 

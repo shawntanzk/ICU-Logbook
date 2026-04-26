@@ -19,15 +19,18 @@ npx expo start
 #   Scan QR code → Expo Go on physical device
 ```
 
-On first launch the app opens the local SQLite cache, runs migrations, and shows the Login screen. From there you can sign in, **create an account** (email + password), or **Continue with Google**. The first admin is promoted from the Supabase dashboard — see below.
+On first launch the app opens the local SQLite cache, runs migrations, and shows the Login screen. From there you can sign in, tap **Create an Account** (opens RegisterScreen — email, password, country, medical registration number), or **Continue with Google**. Google sign-in routes through a second screen to collect country + registration number before entering the main app.
+
+The first admin is promoted from the Supabase dashboard — see below.
 
 ## Prerequisites
 
 - Node.js 18+
 - Expo CLI: `npm install -g expo-cli`
+- EAS CLI: `npm install -g eas-cli` (required for production builds and submissions)
 - iOS: Xcode 15+ (Mac only)
 - Android: Android Studio + emulator
-- A Supabase project with the schema applied (see "Backend setup")
+- A Supabase project with the schema and Edge Functions applied (see "Backend setup")
 
 ---
 
@@ -35,46 +38,73 @@ On first launch the app opens the local SQLite cache, runs migrations, and shows
 
 ```
 /
-├── App.tsx                        DB init + consent/auth/offline hydrate + navigation
+├── App.tsx                              DB init + consent/auth/offline hydrate + navigation
+├── app.json                             Expo config (icons, permissions, iOS/Android metadata)
+├── eas.json                             EAS build profiles (dev / preview / production)
+├── docs/
+│   ├── privacy-policy.html              GDPR-compliant privacy policy (host publicly)
+│   └── validator.html                   Standalone registration validator tool for training bodies
 ├── src/
-│   ├── models/                    TypeScript types + Zod schemas
+│   ├── data/
+│   │   └── countries.ts                 195 ISO 3166-1 countries (COUNTRIES, COUNTRY_OPTIONS, countryName)
+│   ├── models/                          TypeScript types + Zod schemas
 │   ├── database/
-│   │   ├── client.native.ts       Local cache DB (icu_logbook.db)
-│   │   └── migrations.ts          v1 → v8 local schema migrations
+│   │   ├── client.native.ts             Local cache DB (icu_logbook.db)
+│   │   └── migrations.ts                v1 → v8 local schema migrations
+│   ├── polyfills/
+│   │   └── crypto.ts                    WebCrypto polyfill (expo-crypto) for PKCE on Hermes
 │   ├── services/
-│   │   ├── supabase.ts            Real Supabase client (SecureStore session, PKCE)
-│   │   ├── DataService.ts         IDataService + ISyncService interfaces
-│   │   ├── CaseService.ts         CRUD + soft delete (owner-scoped)
-│   │   ├── ProcedureService.ts    CRUD + soft delete (owner-scoped)
-│   │   ├── AuthService.ts         Supabase auth + profile management
-│   │   ├── AuthScope.ts           SQL WHERE fragments for visibility rules
-│   │   ├── authState.ts           Shared auth ref (breaks store ↔ scope cycle)
-│   │   ├── SyncService.ts         Two-way sync with Supabase + conflict tracking
-│   │   ├── SettingsService.ts     Key/value store on app_settings
-│   │   ├── secureStorage.ts       Chunked expo-secure-store adapter for Supabase sessions
-│   │   └── errorReporting.ts      Sentry-ready no-op reporter (init + setUser + capture)
+│   │   ├── supabase.ts                  Real Supabase client (SecureStore session, PKCE)
+│   │   ├── DataService.ts               IDataService + ISyncService interfaces
+│   │   ├── CaseService.ts               CRUD + soft delete (owner-scoped)
+│   │   ├── ProcedureService.ts          CRUD + soft delete (owner-scoped)
+│   │   ├── AuthService.ts               Supabase auth + profile + setMedicalRegistration()
+│   │   ├── AuthScope.ts                 SQL WHERE fragments for visibility rules
+│   │   ├── authState.ts                 Shared auth ref (breaks store ↔ scope cycle)
+│   │   ├── SyncService.ts               Two-way sync with Supabase + conflict tracking
+│   │   ├── SettingsService.ts           Key/value store on app_settings
+│   │   ├── secureStorage.ts             Chunked expo-secure-store adapter for Supabase sessions
+│   │   └── errorReporting.ts            Sentry-ready no-op reporter (init + setUser + capture)
 │   ├── store/
-│   │   ├── authStore.ts           Session + role + signUp / Google OAuth / password reset
-│   │   ├── caseStore.ts           Cases + stats + auto-sync trigger
-│   │   ├── procedureStore.ts      Procedures + stats + auto-sync trigger
-│   │   ├── consentStore.ts        Four-way data-sharing consent
-│   │   ├── offlineStore.ts        Offline-only toggle (kills sync)
-│   │   ├── networkStore.ts        NetInfo-backed online/offline tracking
-│   │   ├── termsStore.ts          Versioned Terms & Privacy acceptance gate
-│   │   └── syncStore.ts           Sync state (isSyncing, status, lastResult)
-│   ├── components/                Reusable UI primitives
+│   │   ├── authStore.ts                 Session + role + signIn / signUp / completeRegistration / Google OAuth
+│   │   ├── caseStore.ts                 Cases + stats + auto-sync trigger
+│   │   ├── procedureStore.ts            Procedures + stats + auto-sync trigger
+│   │   ├── consentStore.ts              Four-way data-sharing consent
+│   │   ├── offlineStore.ts              Offline-only toggle (kills sync)
+│   │   ├── networkStore.ts              NetInfo-backed online/offline tracking
+│   │   ├── termsStore.ts                Versioned Terms & Privacy acceptance gate
+│   │   └── syncStore.ts                 Sync state (isSyncing, status, lastResult)
+│   ├── components/                      Reusable UI primitives
 │   ├── screens/
-│   │   ├── LoginScreen.tsx        Email/password sign-in + sign-up, Google OAuth, forgot-password
-│   │   ├── TermsScreen.tsx        Hard gate shown between login and Main
+│   │   ├── LoginScreen.tsx              Email/password sign-in + Google OAuth + "Create Account" nav
+│   │   ├── RegisterScreen.tsx           New account: name, email, password, country, med reg number
+│   │   ├── CompleteRegistrationScreen.tsx  Post-OAuth: country + med reg number collection
+│   │   ├── TermsScreen.tsx              Hard gate shown between login and Main
 │   │   ├── ChangePasswordScreen.tsx
-│   │   ├── ConflictsScreen.tsx    Keep-mine / keep-server resolver for sync conflicts
-│   │   ├── DashboardScreen.tsx    Logged / Supervised / Procedures + filter pills
-│   │   ├── CaseDetailScreen.tsx   Approve / Edit / Delete buttons
-│   │   ├── EditCaseScreen.tsx     Owner/admin only
+│   │   ├── ConflictsScreen.tsx          Keep-mine / keep-server resolver for sync conflicts
+│   │   ├── DashboardScreen.tsx          Logged / Supervised / Procedures + filter pills
+│   │   ├── CaseDetailScreen.tsx         Approve / Edit / Delete buttons
+│   │   ├── EditCaseScreen.tsx           Owner/admin only
 │   │   ├── EditProcedureScreen.tsx
 │   │   └── …
 │   ├── navigation/
+│   │   ├── RootNavigator.tsx            Auth gate → Terms gate → profileComplete gate → Main tabs
+│   │   └── types.ts                     RootStackParamList (Login, Register, CompleteRegistration, …)
 │   └── utils/
+├── supabase/
+│   ├── functions/
+│   │   ├── register/                    Public signup + HMAC hash (no JWT required)
+│   │   ├── set-registration/            OAuth user reg number collection (JWT required)
+│   │   ├── validate-registration/       Training body validator (VALIDATOR_SECRET required)
+│   │   └── admin-users/                 Admin user management (no JWT check — validates internally)
+│   └── migrations/
+│       ├── 20260420000000_profiles.sql
+│       ├── 20260420000001_audit_log.sql
+│       ├── 20260420000002_rls_clinical_tables.sql
+│       ├── 20260421000000_new_clinical_tables.sql
+│       ├── 20260421000001_rls_new_clinical_tables.sql
+│       ├── 20260422000000_profiles_registration_fields_v1.sql
+│       └── 20260422000001_rls_new_clinical_tables_v10.sql
 ```
 
 ---
@@ -85,7 +115,7 @@ The app talks to Supabase for **auth + data sync**. SQLite is the local cache �
 
 ### 1. Provision the project
 
-1. Create a new Supabase project (free tier is fine for piloting — see PRODUCTION_ROADMAP for capacity estimates).
+1. Create a new Supabase project (free tier is fine for piloting).
 2. Apply migrations from `supabase/migrations/` in timestamp order:
    ```bash
    supabase link --project-ref <your-ref>
@@ -95,62 +125,83 @@ The app talks to Supabase for **auth + data sync**. SQLite is the local cache �
    - `20260420000000_profiles.sql` — `profiles` table + auto-create trigger on `auth.users` insert + RLS on profiles.
    - `20260420000001_audit_log.sql` — append-only `audit_log` table with triggers on clinical tables.
    - `20260420000002_rls_clinical_tables.sql` — RLS policies on `case_logs` / `procedure_logs` plus supervisor-column guard triggers.
+   - `20260421000000_new_clinical_tables.sql` — 9 new clinical tables (ward reviews, transfers, ED attendances, medicine placements, resuscitations, reflections, sick leave, teaching, regional anaesthesia).
+   - `20260421000001_rls_new_clinical_tables.sql` — initial RLS on the 9 new tables.
+   - `20260422000000_profiles_registration_fields_v1.sql` — adds `country`, `med_reg_hmac`, `med_reg_set_at` columns to `profiles` with indexes + updated trigger.
+   - `20260422000001_rls_new_clinical_tables_v10.sql` — finalised 36-policy RLS set (4 policies × 9 tables) + approval-column guard + `bump_server_updated_at` triggers.
 
-   You still need to create the `case_logs` and `procedure_logs` tables themselves on Supabase so the columns match the local SQLite schema (see `src/database/migrations.ts` for the exact shape). The RLS migration only attaches policies — it assumes the tables already exist.
+**WITHOUT MIGRATIONS 1–3 YOUR DATA IS WORLD-READABLE** to any authenticated user via the REST API. Do not skip them.
 
-3. Deploy the admin Edge Function and set its secrets:
-   ```bash
-   supabase functions deploy admin-users --no-verify-jwt
-   supabase secrets set \
-     SUPABASE_URL="https://<ref>.supabase.co" \
-     SUPABASE_ANON_KEY="<anon key>" \
-     SUPABASE_SERVICE_ROLE_KEY="<service role key>"
-   ```
+### 2. Deploy Edge Functions
 
-**WITHOUT THESE MIGRATIONS YOUR DATA IS WORLD-READABLE** to any authenticated user via the REST API. Do not skip step 2.
+Four Edge Functions must be deployed for auth and registration to work:
 
-### 2. First admin
+```bash
+# Registration system
+supabase functions deploy register --no-verify-jwt          # public signup
+supabase functions deploy set-registration                   # JWT-authenticated (OAuth users)
+supabase functions deploy validate-registration --no-verify-jwt  # training body validator
 
-The app no longer ships an in-app admin-setup flow. Anyone who signs up (email+password or Google) lands as role `user`. Promote the first admin from the Supabase dashboard:
+# Admin user management (existing)
+supabase functions deploy admin-users --no-verify-jwt
+```
 
-1. Sign up normally from the app.
+### 3. Set secrets
+
+```bash
+# Generate once and store permanently — changing MED_REG_PEPPER
+# invalidates all stored registration number hashes.
+supabase secrets set MED_REG_PEPPER=$(openssl rand -hex 32)
+
+# Share only with authorised training body validators
+supabase secrets set VALIDATOR_SECRET=$(openssl rand -hex 32)
+
+# Supabase runtime secrets (auto-available in Deno but set explicitly if needed)
+supabase secrets set \
+  SUPABASE_URL="https://<ref>.supabase.co" \
+  SUPABASE_ANON_KEY="<anon key>" \
+  SUPABASE_SERVICE_ROLE_KEY="<service role key>"
+```
+
+> **Warning — `MED_REG_PEPPER` is permanent.** Once users have registered, this secret cannot be rotated without re-collecting every medical registration number. Store it in a password manager or secrets vault before anything else.
+
+### 4. First admin
+
+Anyone who signs up lands as role `user`. Promote the first admin from the Supabase dashboard:
+
+1. Sign up normally from the app (complete the full registration flow).
 2. Open *Authentication → Users → <your row> → Edit user → Raw App Meta Data* and set:
    ```json
    { "role": "admin" }
    ```
 3. Also update the mirrored row in *Table Editor → profiles* — set `role = 'admin'`. The RLS policies check `auth.jwt().app_metadata.role`, but the admin UI lists profiles for display.
 
-Sign out and back in so a fresh JWT carrying the new claim is issued. All subsequent admin operations (user management, audit log read, etc.) key off that claim.
+Sign out and back in so a fresh JWT carrying the new claim is issued.
 
-### 3. Google sign-in (optional but recommended)
+### 5. Google sign-in (optional but recommended)
 
 1. Supabase dashboard → *Authentication → Providers → Google* → enable.
 2. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an **OAuth 2.0 Client ID** (type: *Web application*).
 3. Add the Supabase callback as an authorised redirect URI:
    `https://<project-ref>.supabase.co/auth/v1/callback`
 4. Paste the Google client ID + secret back into the Supabase provider settings.
-5. In Supabase *Authentication → URL Configuration → Additional Redirect URLs*, add the app's deep-link:
-   `iculogbook://auth-callback` (matches the `scheme` in `app.json`)
+5. In Supabase *Authentication → URL Configuration → Additional Redirect URLs*, add:
+   `iculogbook://auth-callback`
 
-The mobile app uses the PKCE flow: it opens Google in an in-app browser, catches the `iculogbook://auth-callback?code=…` redirect, and exchanges the code for a session on-device. No server needed.
+The mobile app uses the PKCE flow: it opens Google in an in-app browser, catches the `iculogbook://auth-callback?code=…` redirect, and exchanges the code for a session on-device.
 
-6. **Enable manual identity linking** so users can link / unlink Google from *Settings → Sign-in Methods* after signup: *Authentication → Settings → Manual linking* → turn on. Without this, `supabase.auth.linkIdentity` returns an error.
+6. **Enable manual identity linking** (Authentication → Settings → Manual linking) so users can link/unlink Google from Settings → Sign-in Methods.
 
-### 4. Self-signup & email confirmation
+> Google users skip the RegisterScreen. After their first sign-in they see CompleteRegistrationScreen to collect country + medical registration number. Once saved, `profileComplete` becomes `true` and they enter the main app.
 
-- The default Supabase setting requires email confirmation. With it on, `signUp` succeeds but the user must click the link before signing in.
-- To skip confirmation for a pilot, turn off *Authentication → Providers → Email → Confirm email*. The app handles both states — if a signup needs confirmation, we prompt the user to check their inbox.
+### 6. Self-signup & email confirmation
 
-### 5. Inviting users the old way
+The registration flow routes through the `register` Edge Function (not `supabase.auth.signUp` directly). This is necessary because the registration number must be hashed server-side before any email confirmation occurs.
 
-`createUser` from the app intentionally throws — creating an account on someone else's behalf requires the service-role key, which doesn't belong on a phone. Use:
+- With email confirmation on (default): the function creates the account and returns `{ needsEmailConfirmation: true }`. The app prompts the user to check their inbox.
+- To skip confirmation for a pilot: *Authentication → Providers → Email → Confirm email* → turn off.
 
-- *Supabase dashboard → Auth → Users → Invite user*, or
-- A server-side admin Edge Function (sketch in PRODUCTION_ROADMAP §4).
-
-`updateUserRole` and `setUserDisabled` work from the app because they only touch the `profiles` table (RLS lets admins update other rows).
-
-### 6. Environment variables
+### 7. Environment variables
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
@@ -158,6 +209,27 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<publishable anon key>
 ```
 
 `.env` is git-ignored. `.env.example` ships placeholder values.
+
+---
+
+## Registration System
+
+Medical registration numbers are handled with a server-side HMAC-SHA256 approach:
+
+```
+Client → HTTPS → register Edge Function → HMAC-SHA256(normalise(number), MED_REG_PEPPER) → profiles.med_reg_hmac
+```
+
+- The plaintext number never reaches the database.
+- The hash is deterministic — the same number always produces the same hash, enabling validation.
+- Admins cannot reverse the hash without the pepper.
+- `profileComplete` in `authStore` is `true` only when both `profiles.country IS NOT NULL` AND `profiles.med_reg_hmac IS NOT NULL`.
+
+**Normalisation:** `trim().toUpperCase().replace(/\s+/g, '')` — applied identically at registration and at validation time.
+
+### Validator tool
+
+`docs/validator.html` is a standalone HTML page for authorised training bodies. Give them the `VALIDATOR_SECRET` and host the HTML at any accessible URL. It sends the registration number to the `validate-registration` Edge Function over HTTPS and returns only `found: true/false` + country + registration date — no personal data.
 
 ---
 
@@ -170,7 +242,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<publishable anon key>
 | `procedure_logs` | Same shape as cases, plus `case_id` FK. |
 | `app_settings` | Key/value (device id, consent, offline-only flag, last-sync watermark). |
 
-Migrations (additive, never edited):
+Local SQLite migrations (additive, never edited):
 
 - **v1** — base tables
 - **v2** — FAIR semantic layer (coded JSON, provenance, quality, consent, license)
@@ -186,12 +258,16 @@ Migrations (additive, never edited):
 ## Authentication Flow
 
 1. App boots, opens local SQLite, runs migrations.
-2. `authStore.restore()` calls `restoreSession()` (Supabase `getSession()` reads the JWT from AsyncStorage).
-3. If no session → Login screen with three actions: Sign In, Create Account, Continue with Google.
+2. `authStore.restore()` calls `restoreSession()` (Supabase `getSession()` reads the JWT from SecureStore).
+3. Navigation gate order:
+   - Not logged in → **Login** / **Register** screens
+   - Logged in, terms not accepted → **TermsScreen** (hard gate)
+   - Logged in, terms accepted, `profileComplete === false` → **CompleteRegistrationScreen** (collects country + reg number for OAuth users)
+   - Logged in, terms accepted, `profileComplete === true` → **Main tabs**
 4. `handle_new_user` Postgres trigger creates the matching `profiles` row for every new `auth.users` entry (role defaults to `user`).
-5. To grant admin: update the row in *Table Editor → profiles* (or run `update profiles set role='admin' where email='…';` in the SQL editor).
+5. To grant admin: update `app_metadata.role = 'admin'` in Auth → Users, and set `role = 'admin'` in profiles.
 
-To reset a session on-device: erase the simulator (*Device → Erase All Content and Settings…*) or sign out from Settings. To wipe an account entirely: delete the user in the Supabase dashboard (Auth → Users) — the profile row cascades.
+To reset a session on-device: erase the simulator (*Device → Erase All Content and Settings…*) or sign out from Settings. To wipe an account entirely: delete the user in Auth → Users (profile row cascades).
 
 ---
 
@@ -202,47 +278,28 @@ Two roles: **`admin`** and **`user`**. Supervision and observation are recorded 
 `src/services/AuthScope.ts` defines:
 
 ```ts
-scopedWhere()         // admin → 1=1; user → owner_id = ?
-caseScopedWhere()     // admin → 1=1;
-                      // user  → (owner_id = ? OR supervisor_user_id = ? OR observer_user_id = ?)
-procedureScopedWhere()// same
+scopedWhere()          // admin → 1=1; user → owner_id = ?
+caseScopedWhere()      // admin → 1=1; user → (owner_id = ? OR supervisor_user_id = ? OR observer_user_id = ?)
+procedureScopedWhere() // same
 ```
 
 Every local SQL read interpolates one of these. Postgres RLS enforces the same shape on the server, so a non-admin user physically cannot read rows they aren't entitled to even with a hand-crafted client.
 
-**Edits**: the owner of a record (and any admin) sees an Edit button on that record. Other users — including the supervisor or observer — cannot edit. Supervisors can only **approve / revoke approval**, not change content.
+**Edits**: the owner of a record (and any admin) sees an Edit button. Supervisors can only **approve / revoke approval**, not change content.
 
 ---
 
 ## Sync Architecture
 
-Two-way sync runs:
-
-- After every local write (fire-and-forget from the stores)
-- When the user taps **Sync Now** in Settings
+Two-way sync runs after every local write and when the user taps **Sync Now** in Settings.
 
 Pipeline:
 
-1. **Push.** All rows where `synced = 0` are upserted to Supabase. Soft-deleted rows (`deleted_at IS NOT NULL`) are pushed the same way — Postgres just persists the tombstone, and other clients learn about the delete on their next pull. On success, the local row is marked `synced = 1` and its `server_updated_at` is stored.
+1. **Push.** All rows where `synced = 0` are upserted to Supabase. Soft-deleted rows (`deleted_at IS NOT NULL`) are pushed the same way.
 2. **Pull.** Rows whose `server_updated_at > last_pull_watermark` are fetched and `INSERT OR REPLACE`d into local SQLite.
-3. **Conflict.** If a row arrives in step 2 but the local copy has unsynced edits, we set `conflict = 1` and leave the local row alone. The user can resolve manually (last-writer-wins by default).
+3. **Conflict.** If a row arrives in step 2 but the local copy has unsynced edits, `conflict = 1` is set and the local row is left alone.
 
-**Offline-only mode** (Settings → toggle) short-circuits the sync entirely. No network calls, no profile reads, no upserts. Useful for trainees who want a pure local logbook with zero cloud footprint.
-
-### What happens if you log offline, then sync later?
-
-- On the device you logged on, every record sits with `synced = 0`. The next push uploads them all.
-- If a web/other-device user **also edited the same row** before you came back online, the most recent `updated_at` wins. The losing side's row is marked `conflict = 1` and surfaced in the UI (Settings → Sync panel will show a non-zero conflict count once that UI lands).
-- If you only **created** new records offline and the web user only **created** other records, there is no conflict — both sets land on Supabase and pull down to each other on the next sync.
-- A delete is always a soft-delete (a tombstone with `deleted_at`). It propagates like any other update, so you can't accidentally lose data because of a stale device.
-
-### Demo script
-
-1. **Sign up** on the app → auto-admin → log a case while online → confirm it appears in the Supabase Table Editor (`case_logs`).
-2. **Toggle Offline-only** in Settings. Add another case. Note the *X pending upload* badge stays.
-3. **Toggle Offline-only off.** Tap *Sync Now*. The pending count drops to 0; the new case appears in Supabase.
-4. **Edit the same case from the dashboard** (Supabase Table Editor — change the diagnosis text). Back in the app, tap *Sync Now*. The change pulls down.
-5. **Forget to sync** — set Offline-only on, edit a case, then on a second device (or in the dashboard) edit the same case differently. Toggle Offline-only off, tap *Sync Now*. The row is marked `conflict = 1`; the local edit is preserved and you decide whether to overwrite.
+**Offline-only mode** (Settings → toggle) short-circuits the sync entirely. No network calls, no profile reads, no upserts.
 
 ---
 
@@ -252,7 +309,33 @@ Open `src/database/migrations.ts`, append a new entry to the `MIGRATIONS` array,
 
 SQLite cannot `ALTER TABLE ... DROP COLUMN`. For destructive changes use the rebuild pattern: `CREATE TABLE foo_new …; INSERT INTO foo_new SELECT … FROM foo; DROP TABLE foo; ALTER TABLE foo_new RENAME TO foo;`.
 
-For Supabase schema changes, write a new migration in the dashboard's SQL editor (or via the MCP `apply_migration` tool) and bump the local schema in lockstep.
+For Supabase schema changes, write a new migration in the dashboard's SQL editor (or via `supabase db push`) and bump the local schema in lockstep.
+
+---
+
+## Building for Production
+
+See `APP_STORE_SUBMISSION.md` for the full checklist. Quick reference:
+
+```bash
+# iOS production build (handles signing via EAS)
+eas build --platform ios --profile production
+
+# Android production build (outputs .aab)
+eas build --platform android --profile production
+
+# Submit to stores
+eas submit --platform ios --profile production
+eas submit --platform android --profile production
+```
+
+Android release signing reads from `~/.gradle/gradle.properties`:
+```
+ICULOGBOOK_STORE_FILE=/absolute/path/to/release.keystore
+ICULOGBOOK_STORE_PASSWORD=…
+ICULOGBOOK_KEY_ALIAS=iculogbook
+ICULOGBOOK_KEY_PASSWORD=…
+```
 
 ---
 
@@ -262,24 +345,17 @@ For Supabase schema changes, write a new migration in the dashboard's SQL editor
 2. Call the Claude API via a **Supabase Edge Function** (never from the client — exposes your API key).
 3. Replace the template `Alert.alert(...)` in `handleAISummary` (CaseDetailScreen) with the real response.
 
-See [PRODUCTION_ROADMAP.md §7.1](PRODUCTION_ROADMAP.md#71-real-ai-summaries) for the full Edge Function sketch.
-
 ---
 
 ## Known Limitations
 
 - No date picker — users type YYYY-MM-DD manually.
 - Conflicts surface as a per-row flag but there's no dedicated resolution UI yet (last-writer-wins until you build one).
-- Creating users / resetting passwords / deleting users from the app is routed through the `admin-users` Edge Function in `supabase/functions/admin-users/`. Deploy it with:
-
+- Creating users / resetting passwords / deleting users from the app is routed through the `admin-users` Edge Function. Deploy with:
   ```bash
   supabase functions deploy admin-users --no-verify-jwt
-  supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... SUPABASE_ANON_KEY=... SUPABASE_URL=...
   ```
+  The function verifies the caller's JWT has `app_metadata.role = 'admin'` before touching the admin API.
+- Push notifications (approval reminders) are not yet implemented — planned for v1.1.
 
-  The function verifies the caller's JWT has `app_metadata.role = 'admin'` before touching the admin API, so the service-role key never leaves Supabase's infrastructure.
-
-- Audit logging is in `supabase/migrations/20260420000001_audit_log.sql`. It creates an append-only `audit_log` table with triggers on `case_logs` and `procedure_logs`. Apply it from the dashboard SQL editor or via `supabase db push`. Admins can query the full log; non-admin users can only read audit rows they own.
-- No PDF/CSV export (FHIR / openEHR / JSON-LD exports exist; see `ExportScreen`).
-
-See [PRODUCTION_ROADMAP.md](PRODUCTION_ROADMAP.md) for the full path to production.
+See [PRODUCTION_TODO.md](PRODUCTION_TODO.md) for the full production readiness summary.

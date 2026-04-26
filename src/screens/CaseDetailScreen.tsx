@@ -89,30 +89,7 @@ export function CaseDetailScreen({ route, navigation }: CasesStackProps<'CaseDet
     getUserDirectory().then(setDirectory).catch(() => setDirectory({}));
   }, []);
 
-  // Mock AI summary — replace with Claude API call when ready
-  function handleAISummary() {
-    if (!caseLog) return;
-    const domainLabels = caseLog.cobatriceDomains
-      .map((id) => COBATRICE_DOMAINS.find((d) => d.id === id)?.label)
-      .filter(Boolean)
-      .slice(0, 2)
-      .join(' and ');
-    const systemLabels = caseLog.organSystems
-      .map((id) => ORGAN_SYSTEMS.find((o) => o.id === id)?.label)
-      .filter(Boolean)
-      .join(', ');
 
-    Alert.alert(
-      '✦ AI Clinical Summary',
-      `This case involved ${systemLabels || 'multiple organ systems'} with a primary diagnosis of ${caseLog.diagnosis}. ` +
-        `Management was conducted at ${caseLog.supervisionLevel} level, demonstrating competency in ${domainLabels || 'key CoBaTrICE domains'}. ` +
-        (caseLog.reflection
-          ? `The trainee reflected: "${caseLog.reflection.substring(0, 100)}${caseLog.reflection.length > 100 ? '…' : ''}"`
-          : 'No reflection recorded for this case.') +
-        '\n\n⚠ This is a mock summary. Connect to Claude API for AI-generated insights.',
-      [{ text: 'Close' }]
-    );
-  }
 
   if (!caseLog) {
     return (

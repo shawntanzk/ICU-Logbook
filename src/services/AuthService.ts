@@ -20,6 +20,8 @@ export interface AuthedUser {
   email: string;
   displayName: string;
   role: UserRole;
+  country: string | null;
+  profileComplete: boolean;
 }
 
 export interface SignInResult {
@@ -38,20 +40,49 @@ interface ProfileRow {
   display_name: string;
   role: UserRole;
   disabled: boolean;
+  country: string | null;
+  // med_reg_hmac is selected to check if set, but the hash value is not used client-side.
+  med_reg_hmac: string | null;
 }
 
 function rowToUser(row: ProfileRow): AuthedUser {
-  return { id: row.id, email: row.email, displayName: row.display_name, role: row.role };
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    role: row.role,
+    country: row.country,
+    profileComplete: !!row.country && !!row.med_reg_hmac,
+  };
 }
 
 async function loadProfile(userId: string): Promise<ProfileRow | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, display_name, role, disabled')
+    .select('id, email, display_name, role, disabled, country, med_reg_hmac')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as ProfileRow) ?? null;
+}
+
+// ─── Set medical registration (called post-signup for OAuth users) ────────────
+// The actual hashing happens inside the 'register' or 'set-registration'
+// Edge Function — the plaintext never reaches the database.
+export async function setMedicalRegistration(input: {
+  country: string;
+  medRegNumber: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('set-registration', {
+    body: {
+      country: input.country.toUpperCase(),
+      med_reg_number: input.medRegNumber.trim(),
+    },
+  });
+  if (error) return { ok: false, error: error.message };
+  const payload = data as { ok: boolean; error?: string };
+  if (!payload?.ok) return { ok: false, error: payload?.error ?? 'Could not save registration.' };
+  return { ok: true };
 }
 
 export async function signIn(email: string, password: string): Promise<SignInResult> {

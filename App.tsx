@@ -8,6 +8,7 @@ import { useTermsStore } from './src/store/termsStore';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { useConsentStore } from './src/store/consentStore';
 import { useAuthStore } from './src/store/authStore';
+import { useGuestStore } from './src/store/guestStore';
 import { initNetworkTracking } from './src/store/networkStore';
 import { initErrorReporting } from './src/services/errorReporting';
 import { COLORS, FONT_SIZE } from './src/utils/constants';
@@ -30,6 +31,12 @@ export default function App() {
         useTermsStore.getState().hydrate(),
         useAuthStore.getState().restore(),
       ]))
+      .then(() => {
+        // Hydrate guest mode only when not already signed in via Supabase.
+        // A live Supabase session always takes priority over guest mode.
+        const { isLoggedIn } = useAuthStore.getState();
+        if (!isLoggedIn) return useGuestStore.getState().hydrate();
+      })
       .then(() => setState('ready'))
       .catch((err: unknown) => {
         console.error('DB init failed:', err);

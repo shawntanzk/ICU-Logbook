@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup rules for expo-secure-store.
+  Excludes the SecureStore shared preferences from Android Auto Backup
+  so that encrypted keys are never sent to Google Drive.
+-->
+<full-backup-content>
+  <exclude domain="sharedpref" path="SecureStore"/>
+</full-backup-content>
