@@ -36,6 +36,7 @@ export interface CaseLog {
   communicated_with_relatives: boolean | null
   teaching_delivered: boolean | null
   teaching_recipient: string | null
+  notes: string | null
   approved_by: string | null
   approved_at: string | null
   deleted_at: string | null

@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'ICU Logbook',
-  description: 'ARCP Portfolio for ICU/Anaesthesia Trainees',
+  description: 'Clinical Training Logbook for ICU/Anaesthesia Trainees',
 }
 
 export default function RootLayout({

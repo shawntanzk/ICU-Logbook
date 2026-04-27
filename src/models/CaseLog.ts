@@ -68,6 +68,7 @@ export const CaseLogSchema = z.object({
   observerUserId: z.string().nullable().optional(),
   externalSupervisorName: z.string().nullable().optional(),
 
+  notes: z.string().max(2000).optional().or(z.literal('')),
   reflection: z.string().max(2000).optional().or(z.literal('')),
 });
 

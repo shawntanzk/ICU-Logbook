@@ -10,7 +10,7 @@ account or using the App, you agree to be bound by these terms.
 ## 1. What This App Is
 
 ICU Logbook is a personal clinical training logbook designed to help ICU and anaesthesia
-trainees record cases and procedures for their ARCP portfolio and personal reflection.
+trainees record cases and procedures for training and personal reflection.
 
 It is **not** a medical device, **not** a decision-support tool, and **not** a substitute
 for professional clinical judgement or official hospital medical records.

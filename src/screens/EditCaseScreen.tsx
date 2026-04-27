@@ -15,6 +15,7 @@ import { FormField } from '../components/FormField';
 import { DateField } from '../components/DateField';
 import { MultiSelect } from '../components/MultiSelect';
 import { RadioGroup } from '../components/RadioGroup';
+import { SelectField } from '../components/SelectField';
 import { Button } from '../components/Button';
 import { ICD10Autocomplete } from '../components/ICD10Autocomplete';
 import { UserPicker } from '../components/UserPicker';
@@ -26,6 +27,7 @@ import {
   ORGAN_SYSTEMS,
   COBATRICE_DOMAINS,
   SUPERVISION_LEVELS,
+  OUTCOME_OPTIONS,
 } from '../utils/constants';
 import type { CasesStackProps } from '../navigation/types';
 
@@ -64,10 +66,12 @@ export function EditCaseScreen({ route, navigation }: CasesStackProps<'EditCase'
       reviewedAgain: existing.reviewedAgain ?? false,
       communicatedWithRelatives: existing.communicatedWithRelatives ?? false,
       teachingDelivered: existing.teachingDelivered ?? false,
+      outcome: existing.outcome ?? undefined,
       supervisionLevel: existing.supervisionLevel,
       supervisorUserId: existing.supervisorUserId ?? null,
       observerUserId: existing.observerUserId ?? null,
       externalSupervisorName: existing.externalSupervisorName ?? null,
+      notes: existing.notes ?? '',
       reflection: existing.reflection ?? '',
     });
   }, [existing]);
@@ -181,6 +185,24 @@ export function EditCaseScreen({ route, navigation }: CasesStackProps<'EditCase'
             value={form.observerUserId ?? null}
             onChange={(v) => update('observerUserId', v)}
             placeholder="None"
+          />
+          <SelectField
+            label="Patient Outcome"
+            options={OUTCOME_OPTIONS}
+            value={form.outcome ?? null}
+            onChange={(v) => update('outcome', (v as CaseLogInput['outcome']) ?? undefined)}
+            clearable
+            placeholder="Select outcome…"
+          />
+          <FormField
+            label="Notes / Remarks"
+            placeholder="Any additional notes or remarks…"
+            value={form.notes ?? ''}
+            onChangeText={(v) => update('notes', v)}
+            multiline
+            numberOfLines={3}
+            style={styles.textarea}
+            textAlignVertical="top"
           />
           <FormField label="Reflection" value={form.reflection ?? ''}
             onChangeText={(v) => update('reflection', v)} error={errors.reflection}

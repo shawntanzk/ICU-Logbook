@@ -48,7 +48,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </div>
             <div>
               <p className="font-bold text-white leading-tight">ICU Logbook</p>
-              <p className="text-xs text-primary-200">ARCP Portfolio</p>
+              <p className="text-xs text-primary-200">Clinical Logbook</p>
             </div>
           </div>
         </div>

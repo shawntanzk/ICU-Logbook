@@ -577,6 +577,13 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
       `INSERT OR IGNORE INTO schema_version (version) VALUES (10)`,
     ],
   },
+  {
+    version: 11,
+    statements: [
+      `ALTER TABLE case_logs ADD COLUMN notes TEXT`,
+      `INSERT OR IGNORE INTO schema_version (version) VALUES (11)`,
+    ],
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

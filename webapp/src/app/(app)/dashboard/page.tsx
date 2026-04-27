@@ -98,7 +98,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-sm">Your ARCP portfolio overview</p>
+          <p className="text-gray-500 text-sm">Your training logbook overview</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">Auto-sync</span>

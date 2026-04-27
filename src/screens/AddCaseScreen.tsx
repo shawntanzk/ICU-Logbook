@@ -56,6 +56,7 @@ const EMPTY_FORM: CaseLogInput = {
   supervisorUserId: null,
   observerUserId: null,
   externalSupervisorName: null,
+  notes: '',
   reflection: '',
 };
 
@@ -226,22 +227,6 @@ export function AddCaseScreen() {
             error={errors.cobatriceDomains}
           />
 
-          {/* ── Outcome ──────────────────────────────────────────────── */}
-          <SectionLabel title="Outcome" />
-          <SelectField
-            label="Patient Outcome"
-            options={OUTCOME_OPTIONS}
-            value={form.outcome ?? null}
-            onChange={(v) => update('outcome', (v as CaseLogInput['outcome']) ?? undefined)}
-            clearable
-            placeholder="Select outcome…"
-          />
-          <ToggleField
-            label="Communication with Relatives"
-            value={form.communicatedWithRelatives ?? false}
-            onChange={(v) => update('communicatedWithRelatives', v)}
-          />
-
           {/* ── Teaching ─────────────────────────────────────────────── */}
           <SectionLabel title="Teaching" />
           <ToggleField
@@ -300,6 +285,35 @@ export function AddCaseScreen() {
             value={form.observerUserId ?? null}
             onChange={(v) => update('observerUserId', v)}
             placeholder="None"
+          />
+
+          {/* ── Outcome ──────────────────────────────────────────────── */}
+          <SectionLabel title="Outcome" />
+          <SelectField
+            label="Patient Outcome"
+            options={OUTCOME_OPTIONS}
+            value={form.outcome ?? null}
+            onChange={(v) => update('outcome', (v as CaseLogInput['outcome']) ?? undefined)}
+            clearable
+            placeholder="Select outcome…"
+          />
+          <ToggleField
+            label="Communication with Relatives"
+            value={form.communicatedWithRelatives ?? false}
+            onChange={(v) => update('communicatedWithRelatives', v)}
+          />
+
+          {/* ── Notes ────────────────────────────────────────────────── */}
+          <SectionLabel title="Notes / Remarks" />
+          <FormField
+            label="Notes / Remarks"
+            placeholder="Any additional notes or remarks…"
+            value={form.notes ?? ''}
+            onChangeText={(v) => update('notes', v)}
+            multiline
+            numberOfLines={3}
+            style={styles.textarea}
+            textAlignVertical="top"
           />
 
           {/* ── Reflection ───────────────────────────────────────────── */}

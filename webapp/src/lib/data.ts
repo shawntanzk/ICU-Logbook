@@ -114,7 +114,11 @@ export const LEVEL_OF_CARE_OPTIONS = ['Level 1', 'Level 2', 'Level 3']
 
 export const OUTCOME_OPTIONS = ['Survived', 'Died', 'Unknown']
 
-export const INVOLVEMENT_OPTIONS = ['Primary', 'Secondary', 'Observer']
+export const INVOLVEMENT_OPTIONS = [
+  { value: 'major', label: 'Major' },
+  { value: 'minor', label: 'Minor' },
+  { value: 'procedure_only', label: 'Procedure only' },
+]
 
 export const REGIONAL_BLOCK_TYPES = [
   'Femoral nerve block',

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, TextArea } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { MultiSelect } from '@/components/ui/MultiSelect'
+import { ICD10Autocomplete } from '@/components/ICD10Autocomplete'
 import {
   SUPERVISION_LEVELS, ORGAN_SYSTEMS, COBATRICE_DOMAINS,
   PATIENT_SEX_OPTIONS, LEVEL_OF_CARE_OPTIONS, OUTCOME_OPTIONS, INVOLVEMENT_OPTIONS,
@@ -38,13 +39,14 @@ export function CaseForm({ initial, onSuccess }: CaseFormProps) {
     case_number: initial?.case_number ?? '',
     primary_specialty: initial?.primary_specialty ?? '',
     level_of_care: initial?.level_of_care ?? '',
-    admitted: initial?.admitted?.toString() ?? '',
-    cardiac_arrest: initial?.cardiac_arrest?.toString() ?? '',
+    admitted: initial?.admitted ?? false,
+    cardiac_arrest: initial?.cardiac_arrest ?? false,
     involvement: initial?.involvement ?? '',
     outcome: initial?.outcome ?? '',
     communicated_with_relatives: initial?.communicated_with_relatives?.toString() ?? '',
     teaching_delivered: initial?.teaching_delivered?.toString() ?? '',
     teaching_recipient: initial?.teaching_recipient ?? '',
+    notes: initial?.notes ?? '',
   })
 
   useEffect(() => {
@@ -55,6 +57,10 @@ export function CaseForm({ initial, onSuccess }: CaseFormProps) {
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm((f) => ({ ...f, [field]: e.target.value }))
+  }
+
+  const toggle = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((f) => ({ ...f, [field]: e.target.checked }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,13 +86,14 @@ export function CaseForm({ initial, onSuccess }: CaseFormProps) {
       case_number: form.case_number || null,
       primary_specialty: form.primary_specialty || null,
       level_of_care: form.level_of_care || null,
-      admitted: form.admitted === 'true' ? true : form.admitted === 'false' ? false : null,
-      cardiac_arrest: form.cardiac_arrest === 'true' ? true : form.cardiac_arrest === 'false' ? false : null,
+      admitted: form.admitted,
+      cardiac_arrest: form.cardiac_arrest,
       involvement: form.involvement || null,
       outcome: form.outcome || null,
       communicated_with_relatives: form.communicated_with_relatives === 'true' ? true : form.communicated_with_relatives === 'false' ? false : null,
       teaching_delivered: form.teaching_delivered === 'true' ? true : form.teaching_delivered === 'false' ? false : null,
       teaching_recipient: form.teaching_recipient || null,
+      notes: form.notes || null,
     }
 
     let result
@@ -119,15 +126,38 @@ export function CaseForm({ initial, onSuccess }: CaseFormProps) {
         <div className="md:col-span-2">
           <Input label="Diagnosis" value={form.diagnosis} onChange={set('diagnosis')} placeholder="Primary diagnosis" required />
         </div>
-        <Input label="ICD-10 code" value={form.icd10_code} onChange={set('icd10_code')} placeholder="e.g. J18.0" />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">ICD-10 code</label>
+          <ICD10Autocomplete
+            value={form.icd10_code}
+            onChange={(code) => setForm((f) => ({ ...f, icd10_code: code }))}
+          />
+        </div>
         <Input label="Primary specialty" value={form.primary_specialty} onChange={set('primary_specialty')} placeholder="e.g. Respiratory" />
         <Select label="Patient sex" options={PATIENT_SEX_OPTIONS} value={form.patient_sex} onChange={set('patient_sex')} placeholder="Select" />
         <Input label="Patient age" type="number" value={form.patient_age} onChange={set('patient_age')} placeholder="Years" min="0" max="120" />
         <Select label="Level of care" options={LEVEL_OF_CARE_OPTIONS} value={form.level_of_care} onChange={set('level_of_care')} placeholder="Select" />
-        <Select label="Outcome" options={OUTCOME_OPTIONS} value={form.outcome} onChange={set('outcome')} placeholder="Select" />
         <Select label="Involvement" options={INVOLVEMENT_OPTIONS} value={form.involvement} onChange={set('involvement')} placeholder="Select" />
-        <Select label="Admitted" options={boolOpts} value={form.admitted} onChange={set('admitted')} placeholder="Select" />
-        <Select label="Cardiac arrest" options={boolOpts} value={form.cardiac_arrest} onChange={set('cardiac_arrest')} placeholder="Select" />
+        <div className="flex items-center gap-3">
+          <input
+            id="admitted"
+            type="checkbox"
+            checked={form.admitted}
+            onChange={toggle('admitted')}
+            className="h-4 w-4 rounded border-gray-300 text-primary-700 focus:ring-primary-500"
+          />
+          <label htmlFor="admitted" className="text-sm font-medium text-gray-700">Patient admitted to ICU/HDU</label>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            id="cardiac_arrest"
+            type="checkbox"
+            checked={form.cardiac_arrest}
+            onChange={toggle('cardiac_arrest')}
+            className="h-4 w-4 rounded border-gray-300 text-primary-700 focus:ring-primary-500"
+          />
+          <label htmlFor="cardiac_arrest" className="text-sm font-medium text-gray-700">Cardiac arrest</label>
+        </div>
         <Select label="Communicated with relatives" options={boolOpts} value={form.communicated_with_relatives} onChange={set('communicated_with_relatives')} placeholder="Select" />
         <Select label="Teaching delivered" options={boolOpts} value={form.teaching_delivered} onChange={set('teaching_delivered')} placeholder="Select" />
         <Input label="Teaching recipient" value={form.teaching_recipient} onChange={set('teaching_recipient')} placeholder="Optional" />
@@ -157,6 +187,16 @@ export function CaseForm({ initial, onSuccess }: CaseFormProps) {
         options={COBATRICE_DOMAINS}
         value={form.cobatrice_domains}
         onChange={(v) => setForm((f) => ({ ...f, cobatrice_domains: v }))}
+      />
+
+      <Select label="Outcome" options={OUTCOME_OPTIONS} value={form.outcome} onChange={set('outcome')} placeholder="Select" />
+
+      <TextArea
+        label="Notes / Remarks"
+        value={form.notes}
+        onChange={set('notes')}
+        placeholder="Any additional notes or remarks…"
+        rows={3}
       />
 
       <TextArea

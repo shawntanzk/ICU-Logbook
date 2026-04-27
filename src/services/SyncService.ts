@@ -36,7 +36,7 @@ const MAX_RETRIES = 5;
 
 const CASE_COLUMNS = [
   'id', 'date', 'diagnosis', 'icd10_code', 'organ_systems', 'cobatrice_domains',
-  'supervision_level', 'reflection', 'created_at', 'updated_at',
+  'supervision_level', 'notes', 'reflection', 'created_at', 'updated_at',
   'schema_version', 'diagnosis_coded', 'organ_systems_coded',
   'cobatrice_domains_coded', 'supervision_level_coded',
   'provenance', 'quality', 'consent_status', 'license', 'owner_id',

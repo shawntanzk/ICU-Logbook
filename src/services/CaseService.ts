@@ -46,6 +46,7 @@ interface CaseRow {
   teaching_recipient: string | null;
   // Supervision
   supervision_level: string;
+  notes: string | null;
   reflection: string;
   created_at: string;
   updated_at: string;
@@ -124,6 +125,7 @@ function rowToModel(row: CaseRow): CaseLog {
     teachingRecipient: (row.teaching_recipient as CaseLog['teachingRecipient']) ?? undefined,
 
     supervisionLevel: row.supervision_level as CaseLog['supervisionLevel'],
+    notes: row.notes ?? undefined,
     reflection: row.reflection,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -244,7 +246,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
          diagnosis, icd10_code, organ_systems, cobatrice_domains,
          outcome, communicated_with_relatives,
          teaching_delivered, teaching_recipient,
-         supervision_level, reflection,
+         supervision_level, notes, reflection,
          created_at, updated_at, synced,
          schema_version,
          diagnosis_coded, organ_systems_coded, cobatrice_domains_coded,
@@ -258,7 +260,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
                ?, ?, ?, ?,
                ?, ?,
                ?, ?,
-               ?, ?,
+               ?, ?, ?,
                ?, ?, 0,
                ?,
                ?, ?, ?,
@@ -277,7 +279,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
         JSON.stringify(input.organSystems), JSON.stringify(input.cobatriceDomains),
         input.outcome ?? null, input.communicatedWithRelatives ? 1 : 0,
         input.teachingDelivered ? 1 : 0, input.teachingRecipient ?? null,
-        input.supervisionLevel, input.reflection ?? '',
+        input.supervisionLevel, input.notes ?? null, input.reflection ?? '',
         now, now,
         CURRENT_SCHEMA_VERSION,
         coded.diagnosisCoded ? JSON.stringify(coded.diagnosisCoded) : null,
@@ -325,6 +327,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
       teachingDelivered: input.teachingDelivered ?? existing.teachingDelivered ?? false,
       teachingRecipient: input.teachingRecipient ?? existing.teachingRecipient,
       supervisionLevel: input.supervisionLevel ?? existing.supervisionLevel,
+      notes: input.notes ?? existing.notes,
       supervisorUserId: input.supervisorUserId ?? existing.supervisorUserId,
       observerUserId: input.observerUserId ?? existing.observerUserId,
       externalSupervisorName: input.externalSupervisorName ?? existing.externalSupervisorName,
@@ -355,7 +358,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
         diagnosis = ?, icd10_code = ?, organ_systems = ?, cobatrice_domains = ?,
         outcome = ?, communicated_with_relatives = ?,
         teaching_delivered = ?, teaching_recipient = ?,
-        supervision_level = ?, reflection = ?,
+        supervision_level = ?, notes = ?, reflection = ?,
         updated_at = ?, synced = 0,
         diagnosis_coded = ?, organ_systems_coded = ?,
         cobatrice_domains_coded = ?, supervision_level_coded = ?,
@@ -375,7 +378,7 @@ class CaseServiceImpl implements IDataService<CaseLog, CaseLogInput> {
         JSON.stringify(merged.organSystems), JSON.stringify(merged.cobatriceDomains),
         merged.outcome ?? null, merged.communicatedWithRelatives ? 1 : 0,
         merged.teachingDelivered ? 1 : 0, merged.teachingRecipient ?? null,
-        merged.supervisionLevel, merged.reflection ?? '',
+        merged.supervisionLevel, merged.notes ?? null, merged.reflection ?? '',
         now,
         coded.diagnosisCoded ? JSON.stringify(coded.diagnosisCoded) : null,
         JSON.stringify(coded.organSystemsCoded),

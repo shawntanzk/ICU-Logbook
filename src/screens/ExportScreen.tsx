@@ -23,8 +23,8 @@ interface FormatDef {
 const FORMATS: FormatDef[] = [
   {
     id: 'arcp_csv',
-    title: 'ARCP Portfolio (CSV)',
-    summary: 'Multi-section CSV covering all 10 log types. Open directly in Excel, Numbers or Google Sheets for your ARCP portfolio.',
+    title: 'Full Export (CSV)',
+    summary: 'Multi-section CSV covering all 10 log types. Open directly in Excel, Numbers or Google Sheets.',
     icon: 'document-text-outline',
   },
   {
