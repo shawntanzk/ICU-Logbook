@@ -1,45 +1,63 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import { Card } from '@/components/ui/Card'
 
-const LOG_TYPES = [
-  { href: '/logs/cases', label: 'ICU Cases', icon: '🏥', description: 'Record ICU admissions and clinical cases' },
-  { href: '/logs/procedures', label: 'Procedures', icon: '🔧', description: 'General procedure log' },
-  { href: '/logs/airway', label: 'Airway Management', icon: '😮‍💨', description: 'Intubations and airway procedures' },
-  { href: '/logs/arterial-line', label: 'Arterial Lines', icon: '🩸', description: 'Arterial line insertions' },
-  { href: '/logs/cvc', label: 'Central Venous Catheters', icon: '💉', description: 'CVC, PICC, and vascath insertions' },
-  { href: '/logs/uss', label: 'Ultrasound', icon: '📡', description: 'Point-of-care ultrasound studies' },
-  { href: '/logs/regional-block', label: 'Regional Blocks', icon: '🫀', description: 'Regional anaesthesia and nerve blocks' },
-  { href: '/logs/ward-reviews', label: 'Ward Reviews', icon: '📝', description: 'Outreach and ward review consultations' },
-  { href: '/logs/transfers', label: 'Transfers', icon: '🚑', description: 'Intra- and inter-hospital transfers' },
-  { href: '/logs/ed', label: 'ED Attendances', icon: '🚨', description: 'Emergency department attendances' },
-  { href: '/logs/medicine', label: 'Medicine Placements', icon: '⚕️', description: 'Medicine and specialty placements' },
+interface LogType {
+  href: string
+  title: string
+  subtitle: string
+  color: string
+  group: 'Clinical Episodes' | 'Procedures'
+}
+
+const LOG_TYPES: LogType[] = [
+  // ── Clinical Episodes
+  { href: '/logs/cases',     title: 'ICU / HDU Case',            subtitle: 'Patient episode with diagnosis, procedures & outcome', color: '#1E5A96', group: 'Clinical Episodes' },
+  { href: '/logs/ward-reviews', title: 'Ward Review',            subtitle: 'Review of at-risk patient on general ward',           color: '#6366F1', group: 'Clinical Episodes' },
+  { href: '/logs/transfers', title: 'Transfer',                  subtitle: 'Inter- or intra-hospital critical care transfer',     color: '#F59E0B', group: 'Clinical Episodes' },
+  { href: '/logs/ed',        title: 'ED Attendance',             subtitle: 'Emergency department critical care involvement',      color: '#EF4444', group: 'Clinical Episodes' },
+  { href: '/logs/medicine',  title: 'Medicine Placement',        subtitle: 'Out-of-ICU specialty placement',                     color: '#22C55E', group: 'Clinical Episodes' },
+  // ── Procedures
+  { href: '/logs/airway',        title: 'Airway Management',         subtitle: 'RSI, intubation, DAE, tracheostomy',           color: '#0891B2', group: 'Procedures' },
+  { href: '/logs/arterial-line', title: 'Arterial Line',             subtitle: 'Arterial catheter insertion by site',          color: '#E11D48', group: 'Procedures' },
+  { href: '/logs/cvc',           title: 'Central Venous Catheter',   subtitle: 'CVC / vascath insertion by site',              color: '#7C3AED', group: 'Procedures' },
+  { href: '/logs/uss',           title: 'Ultrasound Study',          subtitle: 'POCUS — FICE, FAST, AAA, pleural, DVT…',      color: '#0F766E', group: 'Procedures' },
+  { href: '/logs/regional-block', title: 'Regional Block',           subtitle: 'Nerve block from 45-item catalogue',           color: '#D97706', group: 'Procedures' },
 ]
+
+const GROUPS: Array<'Clinical Episodes' | 'Procedures'> = ['Clinical Episodes', 'Procedures']
 
 export default function LogsHubPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Logs</h1>
-        <p className="text-gray-500 text-sm">Select a log type to view, add, or manage entries</p>
+        <h1 className="text-2xl font-bold text-gray-900">What would you like to log?</h1>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {LOG_TYPES.map((log) => (
-          <Link key={log.href} href={log.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <div className="flex items-start gap-4">
-                <div className="text-3xl">{log.icon}</div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{log.label}</h3>
-                  <p className="text-sm text-gray-500 mt-0.5">{log.description}</p>
+      {GROUPS.map((group) => (
+        <div key={group}>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{group}</p>
+          <div className="space-y-2">
+            {LOG_TYPES.filter((l) => l.group === group).map((l) => (
+              <Link key={l.href} href={`${l.href}/new`} className="block">
+                <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:shadow-sm transition-shadow cursor-pointer">
+                  <div
+                    className="w-10 h-10 rounded-lg flex-shrink-0"
+                    style={{ backgroundColor: l.color + '20' }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">{l.title}</p>
+                    <p className="text-xs text-gray-500 truncate">{l.subtitle}</p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
-              </div>
-            </Card>
-          </Link>
-        ))}
-      </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

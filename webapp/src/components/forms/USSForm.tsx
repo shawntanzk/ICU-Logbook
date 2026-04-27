@@ -6,6 +6,7 @@ import { Select } from '@/components/ui/Select'
 import { Input, TextArea } from '@/components/ui/Input'
 import { SUPERVISION_LEVELS, USS_STUDY_TYPES } from '@/lib/data'
 import { today } from '@/lib/utils'
+import { CaseSelector } from '@/components/CaseSelector'
 import type { USSLog, Profile } from '@/types/database'
 
 interface USSFormProps {
@@ -27,6 +28,7 @@ export function USSForm({ initial, onSuccess }: USSFormProps) {
     supervision_level: initial?.supervision_level ?? '',
     supervisor_user_id: initial?.supervisor_user_id ?? '',
     external_supervisor_name: initial?.external_supervisor_name ?? '',
+    case_id: initial?.case_id ?? '',
   })
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export function USSForm({ initial, onSuccess }: USSFormProps) {
       supervision_level: form.supervision_level || null,
       supervisor_user_id: form.supervisor_user_id || null,
       external_supervisor_name: form.external_supervisor_name || null,
+      case_id: form.case_id || null,
     }
 
     let result
@@ -70,6 +73,7 @@ export function USSForm({ initial, onSuccess }: USSFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>}
+      <CaseSelector value={form.case_id} onChange={(id) => setForm((f) => ({ ...f, case_id: id }))} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input label="Date" type="date" value={form.date} onChange={set('date')} required />
         <Select label="Study type" options={USS_STUDY_TYPES} value={form.study_type} onChange={set('study_type')} placeholder="Select type" />

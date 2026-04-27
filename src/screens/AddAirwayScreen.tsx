@@ -15,6 +15,7 @@ import { SelectField } from '../components/SelectField';
 import { ToggleField } from '../components/ToggleField';
 import { Button } from '../components/Button';
 import { UserPicker } from '../components/UserPicker';
+import { EpisodePicker } from '../components/EpisodePicker';
 import { listUsers, ManagedUser } from '../services/AuthService';
 import {
   RSI_INDUCTION_AGENTS,
@@ -143,6 +144,10 @@ export function AddAirwayScreen({ route }: LogStackProps<'AddAirway'>) {
             value={form.date}
             onChange={(v) => update('date', v)}
             maxDate={new Date()}
+          />
+          <EpisodePicker
+            value={form.caseId}
+            onChange={(v) => update('caseId', v)}
           />
 
           <SectionLabel title="RSI" />
