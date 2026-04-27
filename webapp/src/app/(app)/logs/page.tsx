@@ -39,7 +39,7 @@ export default function LogsHubPage() {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{group}</p>
           <div className="space-y-2">
             {LOG_TYPES.filter((l) => l.group === group).map((l) => (
-              <Link key={l.href} href={`${l.href}/new`}>
+              <Link key={l.href} href={`${l.href}/new`} className="block">
                 <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:shadow-sm transition-shadow cursor-pointer">
                   <div
                     className="w-10 h-10 rounded-lg flex-shrink-0"
