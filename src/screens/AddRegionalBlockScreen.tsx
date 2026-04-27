@@ -14,6 +14,7 @@ import { SelectField } from '../components/SelectField';
 import { ToggleField } from '../components/ToggleField';
 import { Button } from '../components/Button';
 import { UserPicker } from '../components/UserPicker';
+import { EpisodePicker } from '../components/EpisodePicker';
 import { listUsers, ManagedUser } from '../services/AuthService';
 import { REGIONAL_BLOCK_LABELS } from '../data/regionalBlocks';
 import {
@@ -119,6 +120,10 @@ export function AddRegionalBlockScreen({ route }: LogStackProps<'AddRegionalBloc
             value={form.date}
             onChange={(v) => update('date', v)}
             maxDate={new Date()}
+          />
+          <EpisodePicker
+            value={form.caseId}
+            onChange={(v) => update('caseId', v)}
           />
 
           <SectionLabel title="Block" />

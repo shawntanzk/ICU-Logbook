@@ -7,6 +7,7 @@ import { Input, TextArea } from '@/components/ui/Input'
 import { MultiSelect } from '@/components/ui/MultiSelect'
 import { SUPERVISION_LEVELS, AIRWAY_DEVICES } from '@/lib/data'
 import { today } from '@/lib/utils'
+import { CaseSelector } from '@/components/CaseSelector'
 import type { AirwayLog, Profile } from '@/types/database'
 
 const DAE_ITEMS_OPTIONS = ['Gum elastic bougie', 'Stylet', 'Video laryngoscope', 'Airway exchange catheter', 'Supraglottic airway', 'Other']
@@ -39,6 +40,7 @@ export function AirwayForm({ initial, onSuccess }: AirwayFormProps) {
     supervisor_user_id: initial?.supervisor_user_id ?? '',
     external_supervisor_name: initial?.external_supervisor_name ?? '',
     notes: initial?.notes ?? '',
+    case_id: initial?.case_id ?? '',
   })
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export function AirwayForm({ initial, onSuccess }: AirwayFormProps) {
       supervisor_user_id: form.supervisor_user_id || null,
       external_supervisor_name: form.external_supervisor_name || null,
       notes: form.notes || null,
+      case_id: form.case_id || null,
     }
 
     let result
@@ -89,6 +92,7 @@ export function AirwayForm({ initial, onSuccess }: AirwayFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>}
+      <CaseSelector value={form.case_id} onChange={(id) => setForm((f) => ({ ...f, case_id: id }))} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input label="Date" type="date" value={form.date} onChange={set('date')} required />
         <Select label="RSI" options={boolOpts} value={form.is_rsi} onChange={set('is_rsi')} placeholder="Select" />

@@ -14,6 +14,7 @@ import { SelectField } from '../components/SelectField';
 import { ToggleField } from '../components/ToggleField';
 import { Button } from '../components/Button';
 import { UserPicker } from '../components/UserPicker';
+import { EpisodePicker } from '../components/EpisodePicker';
 import { listUsers, ManagedUser } from '../services/AuthService';
 import { ARTERIAL_LINE_SITE_LABELS } from '../data/arterialLineSites';
 import {
@@ -117,6 +118,10 @@ export function AddArterialLineScreen({ route }: LogStackProps<'AddArterialLine'
             value={form.date}
             onChange={(v) => update('date', v)}
             maxDate={new Date()}
+          />
+          <EpisodePicker
+            value={form.caseId}
+            onChange={(v) => update('caseId', v)}
           />
 
           <SectionLabel title="Insertion" />
