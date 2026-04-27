@@ -30,49 +30,38 @@ export default function AdminPage() {
   }, [currentUser])
 
   const fetchUsers = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-
-    try {
-      const res = await fetch('https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/admin-users', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Failed to load users')
-        // Fallback: load from profiles directly
-        const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
-        setUsers(profiles ?? [])
-      } else {
-        setUsers(data.users ?? data ?? [])
-      }
-    } catch {
-      // Fallback
-      const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
-      setUsers(profiles ?? [])
-    }
+    const { data: profiles, error: err } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (err) setError(err.message)
+    else setUsers(profiles ?? [])
     setLoading(false)
   }
 
   useEffect(() => { fetchUsers() }, [])
 
+  const edgeFn = async (body: object) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return fetch('https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/admin-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify(body),
+    })
+  }
+
   const handleToggleRole = async (user: Profile) => {
     setActionLoading(user.id)
     setError('')
     const newRole = user.role === 'admin' ? 'user' : 'admin'
-    const { data: { session } } = await supabase.auth.getSession()
     try {
-      const res = await fetch('https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/admin-users', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ userId: user.id, role: newRole }),
-      })
+      const res = await edgeFn({ action: 'setRole', userId: user.id, role: newRole })
       if (!res.ok) {
-        // Direct update fallback
-        await supabase.from('profiles').update({ role: newRole }).eq('id', user.id)
+        const { error: err } = await supabase.from('profiles').update({ role: newRole }).eq('id', user.id)
+        if (err) setError(err.message)
       }
     } catch {
       await supabase.from('profiles').update({ role: newRole }).eq('id', user.id)
@@ -84,23 +73,9 @@ export default function AdminPage() {
   const handleToggleDisabled = async (user: Profile) => {
     setActionLoading(user.id + '-disabled')
     setError('')
-    const { data: { session } } = await supabase.auth.getSession()
     const newDisabled = !user.disabled
-    try {
-      const res = await fetch('https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/admin-users', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ userId: user.id, disabled: newDisabled }),
-      })
-      if (!res.ok) {
-        await supabase.from('profiles').update({ disabled: newDisabled }).eq('id', user.id)
-      }
-    } catch {
-      await supabase.from('profiles').update({ disabled: newDisabled }).eq('id', user.id)
-    }
+    const { error: err } = await supabase.from('profiles').update({ disabled: newDisabled }).eq('id', user.id)
+    if (err) setError(err.message)
     await fetchUsers()
     setActionLoading(null)
   }
@@ -108,18 +83,15 @@ export default function AdminPage() {
   const handleDelete = async (user: Profile) => {
     if (!confirm(`Delete user ${user.display_name ?? user.email}? This cannot be undone.`)) return
     setActionLoading(user.id + '-delete')
-    const { data: { session } } = await supabase.auth.getSession()
+    setError('')
     try {
-      await fetch('https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/admin-users', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ userId: user.id }),
-      })
+      const res = await edgeFn({ action: 'deleteUser', userId: user.id })
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to delete user')
+      }
     } catch {
-      // Best effort
+      setError('Failed to delete user')
     }
     await fetchUsers()
     setActionLoading(null)
