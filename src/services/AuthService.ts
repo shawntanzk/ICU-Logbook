@@ -215,7 +215,13 @@ export async function unlinkGoogleIdentity(): Promise<{ ok: boolean; error?: str
 }
 
 export async function restoreSession(): Promise<AuthedUser | null> {
-  const { data } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    // Stale or invalidated refresh token — clear it so the user sees
+    // the sign-in screen cleanly rather than a broken auth state.
+    await supabase.auth.signOut();
+    return null;
+  }
   const user = data.session?.user;
   if (!user) return null;
   const profile = await loadProfile(user.id);
