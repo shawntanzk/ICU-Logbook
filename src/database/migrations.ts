@@ -211,7 +211,7 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
   },
   {
     // v10 — new sub-entity tables: airway_logs, arterial_line_logs, cvc_logs,
-    // uss_logs, regional_block_logs, ward_review_logs, transfer_logs,
+    // uss_logs, regional_block_logs, transfer_logs,
     // ed_attendance_logs, medicine_placement_logs.
     // All tables follow the same governance pattern as case_logs:
     // owner_id, supervisor_user_id, approved_by/at, synced/conflict/deleted_at,
@@ -415,45 +415,6 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_regional_block_logs_owner ON regional_block_logs(owner_id)`,
       `CREATE INDEX IF NOT EXISTS idx_regional_block_logs_sync ON regional_block_logs(synced, conflict)`,
 
-      // ── ward_review_logs ─────────────────────────────────────────────────
-      `CREATE TABLE IF NOT EXISTS ward_review_logs (
-        id                            TEXT PRIMARY KEY NOT NULL,
-        date                          TEXT NOT NULL,
-        patient_age                   TEXT,
-        patient_sex                   TEXT,
-        referring_specialty           TEXT,
-        diagnosis                     TEXT NOT NULL,
-        icd10_code                    TEXT NOT NULL DEFAULT '',
-        review_outcome                TEXT NOT NULL DEFAULT 'advice_only',
-        communicated_with_relatives   INTEGER NOT NULL DEFAULT 0,
-        cobatrice_domains             TEXT NOT NULL DEFAULT '[]',
-        reflection                    TEXT,
-        supervision_level             TEXT NOT NULL,
-        supervisor_user_id            TEXT,
-        external_supervisor_name      TEXT,
-        owner_id                      TEXT,
-        approved_by                   TEXT,
-        approved_at                   TEXT,
-        created_at                    TEXT NOT NULL,
-        updated_at                    TEXT NOT NULL,
-        synced                        INTEGER NOT NULL DEFAULT 0,
-        conflict                      INTEGER NOT NULL DEFAULT 0,
-        deleted_at                    TEXT,
-        server_updated_at             TEXT,
-        sync_retry_count              INTEGER NOT NULL DEFAULT 0,
-        sync_last_error               TEXT,
-        schema_version                TEXT NOT NULL DEFAULT '3.0.0',
-        diagnosis_coded               TEXT,
-        cobatrice_domains_coded       TEXT NOT NULL DEFAULT '[]',
-        supervision_level_coded       TEXT,
-        provenance                    TEXT,
-        quality                       TEXT,
-        consent_status                TEXT NOT NULL DEFAULT 'anonymous',
-        license                       TEXT NOT NULL DEFAULT 'CC-BY-NC-4.0'
-      )`,
-      `CREATE INDEX IF NOT EXISTS idx_ward_review_logs_owner ON ward_review_logs(owner_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_ward_review_logs_sync ON ward_review_logs(synced, conflict)`,
-
       // ── transfer_logs ─────────────────────────────────────────────────────
       `CREATE TABLE IF NOT EXISTS transfer_logs (
         id                            TEXT PRIMARY KEY NOT NULL,
@@ -582,6 +543,15 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
     statements: [
       `ALTER TABLE case_logs ADD COLUMN notes TEXT`,
       `INSERT OR IGNORE INTO schema_version (version) VALUES (11)`,
+    ],
+  },
+  {
+    // v12 — remove ward_review_logs (feature removed). DROP IF EXISTS is safe
+    // for both fresh installs (table never created) and upgrades from v10/v11.
+    version: 12,
+    statements: [
+      `DROP TABLE IF EXISTS ward_review_logs`,
+      `INSERT OR IGNORE INTO schema_version (version) VALUES (12)`,
     ],
   },
 ];

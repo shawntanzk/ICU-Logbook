@@ -13,7 +13,6 @@ interface LogType {
 const LOG_TYPES: LogType[] = [
   // ── Clinical Episodes
   { href: '/logs/cases',     title: 'ICU / HDU Case',            subtitle: 'Patient episode with diagnosis, procedures & outcome', color: '#1E5A96', group: 'Clinical Episodes' },
-  { href: '/logs/ward-reviews', title: 'Ward Review',            subtitle: 'Review of at-risk patient on general ward',           color: '#6366F1', group: 'Clinical Episodes' },
   { href: '/logs/transfers', title: 'Transfer',                  subtitle: 'Inter- or intra-hospital critical care transfer',     color: '#F59E0B', group: 'Clinical Episodes' },
   { href: '/logs/ed',        title: 'ED Attendance',             subtitle: 'Emergency department critical care involvement',      color: '#EF4444', group: 'Clinical Episodes' },
   { href: '/logs/medicine',  title: 'Medicine Placement',        subtitle: 'Out-of-ICU specialty placement',                     color: '#22C55E', group: 'Clinical Episodes' },

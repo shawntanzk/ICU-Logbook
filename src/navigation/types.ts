@@ -36,7 +36,6 @@ export type LogStackParamList = {
   LogHub: undefined;
   // Clinical episodes
   AddCase: undefined;
-  AddWardReview: undefined;
   AddTransfer: undefined;
   AddED: undefined;
   AddMedicinePlacement: undefined;

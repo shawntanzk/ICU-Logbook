@@ -11,7 +11,6 @@
 // wrapped in double-quotes; embedded double-quotes are doubled.
 
 import { CaseLog } from '../../models/CaseLog';
-import { WardReviewLog } from '../../models/WardReviewLog';
 import { TransferLog } from '../../models/TransferLog';
 import { EDAttendanceLog } from '../../models/EDAttendanceLog';
 import { MedicinePlacementLog } from '../../models/MedicinePlacementLog';
@@ -89,40 +88,6 @@ function casesSection(records: CaseLog[]): string {
     )
   );
   return [sectionHeader('ICU / HDU Cases', records.length), row(...cols), ...dataRows].join('\n');
-}
-
-function wardReviewsSection(records: WardReviewLog[]): string {
-  const cols = [
-    'Date', 'Age', 'Sex', 'Referring Specialty',
-    'Diagnosis', 'ICD-10', 'Review Outcome',
-    'Communication with Relatives', 'CoBaTrICE Domains',
-    'Supervision Level', 'Supervisor (ID)', 'Supervisor (off-system)', 'Reflection',
-  ];
-  const OUTCOME_LABEL: Record<string, string> = {
-    escalated_icu: 'Escalated to ICU',
-    escalated_hdu: 'Escalated to HDU',
-    not_escalated: 'Not escalated',
-    advice_only: 'Advice only',
-    other: 'Other',
-  };
-  const dataRows = records.map((r) =>
-    row(
-      r.date,
-      r.patientAge ?? '',
-      r.patientSex ?? '',
-      r.referringSpecialty ?? '',
-      r.diagnosis,
-      r.icd10Code ?? '',
-      OUTCOME_LABEL[r.reviewOutcome] ?? r.reviewOutcome,
-      bool(r.communicatedWithRelatives),
-      arr(r.cobatriceDomains),
-      r.supervisionLevel,
-      r.supervisorUserId ?? '',
-      r.externalSupervisorName ?? '',
-      r.reflection ?? '',
-    )
-  );
-  return [sectionHeader('Ward Reviews', records.length), row(...cols), ...dataRows].join('\n');
 }
 
 function transfersSection(records: TransferLog[]): string {
@@ -342,7 +307,6 @@ function regionalBlockSection(records: RegionalBlockLog[]): string {
 
 export interface ARCPData {
   cases: CaseLog[];
-  wardReviews: WardReviewLog[];
   transfers: TransferLog[];
   edAttendances: EDAttendanceLog[];
   medicinePlacements: MedicinePlacementLog[];
@@ -356,7 +320,7 @@ export interface ARCPData {
 /** Converts all logbook data into a multi-section ARCP CSV string. */
 export function toARCPCsv(data: ARCPData): string {
   const total =
-    data.cases.length + data.wardReviews.length + data.transfers.length +
+    data.cases.length + data.transfers.length +
     data.edAttendances.length + data.medicinePlacements.length +
     data.airways.length + data.arterialLines.length + data.cvcs.length +
     data.ussStudies.length + data.regionalBlocks.length;
@@ -371,7 +335,6 @@ export function toARCPCsv(data: ARCPData): string {
 
   const sections = [
     casesSection(data.cases),
-    wardReviewsSection(data.wardReviews),
     transfersSection(data.transfers),
     edSection(data.edAttendances),
     medicinePlacementsSection(data.medicinePlacements),

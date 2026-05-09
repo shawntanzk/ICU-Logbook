@@ -12,7 +12,6 @@ const CLINICAL_TABLES = [
   'cvc_logs',
   'uss_logs',
   'regional_block_logs',
-  'ward_review_logs',
   'transfer_logs',
   'ed_attendance_logs',
   'medicine_placement_logs',

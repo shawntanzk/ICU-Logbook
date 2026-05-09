@@ -182,7 +182,6 @@ ICU-Logbook/
 │   │   ├── CVCLog.ts
 │   │   ├── USSLog.ts
 │   │   ├── RegionalBlockLog.ts
-│   │   ├── WardReviewLog.ts
 │   │   ├── TransferLog.ts
 │   │   ├── EDLog.ts
 │   │   └── MedicinePlacementLog.ts
@@ -204,7 +203,6 @@ ICU-Logbook/
 │   │   ├── CVCService.ts
 │   │   ├── USSService.ts
 │   │   ├── RegionalBlockService.ts
-│   │   ├── WardReviewService.ts
 │   │   ├── TransferService.ts
 │   │   ├── EDService.ts
 │   │   ├── MedicinePlacementService.ts
@@ -256,7 +254,6 @@ ICU-Logbook/
 │   │   ├── AddCaseScreen.tsx
 │   │   ├── EditCaseScreen.tsx
 │   │   ├── LogHubScreen.tsx
-│   │   ├── AddWardReviewScreen.tsx
 │   │   ├── AddTransferScreen.tsx
 │   │   ├── AddEDScreen.tsx
 │   │   ├── AddMedicinePlacementScreen.tsx
