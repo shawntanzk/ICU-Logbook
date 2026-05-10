@@ -77,7 +77,6 @@ Reads from `useAuthStore`: `isLoggedIn`, `termsAccepted`, `profileComplete`.
 ### Clinical Log Entry Screens (all in `src/screens/`)
 | Screen | Log type |
 |--------|---------|
-| `AddWardReviewScreen.tsx` | Ward review |
 | `AddTransferScreen.tsx` | Patient transfer |
 | `AddEDScreen.tsx` | ED attendance |
 | `AddMedicinePlacementScreen.tsx` | Medicine placement |
@@ -190,7 +189,7 @@ Singleton ref `{ userId, role }` — breaks the circular dependency between `Aut
 `ProcedureServiceImpl` — same pattern as CaseService. Extra: `findByCaseId(caseId)`, `getSuccessRate()`, `getTypeCounts()`.
 
 ### Clinical log services (one each, same CRUD pattern)
-`AirwayService`, `ArterialLineService`, `CVCService`, `USSService`, `RegionalBlockService`, `WardReviewService`, `TransferService`, `EDAttendanceService`, `MedicinePlacementService`
+`AirwayService`, `ArterialLineService`, `CVCService`, `USSService`, `RegionalBlockService`, `TransferService`, `EDAttendanceService`, `MedicinePlacementService`
 
 ### `SyncService.ts`
 `SyncServiceImpl` implements `ISyncService`:
@@ -231,7 +230,7 @@ Sentry-ready no-op: `init()`, `setUser(u)`, `capture(err)`. Wire in `@sentry/rea
 
 | File | Format | Notes |
 |------|--------|-------|
-| `ARCPExporter.ts` | CSV | ARCP-ready. Covers all 10 log types. Main export path from `ExportScreen`. |
+| `ARCPExporter.ts` | CSV | ARCP-ready. Covers all 9 log types. Main export path from `ExportScreen`. |
 | `FHIRExporter.ts` | FHIR R4 Bundle JSON | Calls `deidentifyCase/Procedure` first. `caseToFhir`, `procedureToFhir`, `casesToFhirBundle`. |
 | `JSONLDExporter.ts` | JSON-LD | Schema.org + custom medical vocab. Calls deidentify. |
 | `OpenEHRExporter.ts` | openEHR composition JSON | `caseToOpenEHR`, `casesToOpenEHR`. |
@@ -281,7 +280,6 @@ All models are TypeScript interfaces. No Zod runtime validation in production pa
 | `CVCLog.ts` | `CVCLog` | Site, lumen count, USS-guided flag |
 | `USSLog.ts` | `USSLog` | Study type, findings, image quality |
 | `RegionalBlockLog.ts` | `RegionalBlockLog` | Block type, approach, outcome |
-| `WardReviewLog.ts` | `WardReviewLog` | Ward, reason, management changes |
 | `TransferLog.ts` | `TransferLog` | Origin, destination, clinical state |
 | `EDAttendanceLog.ts` | `EDAttendanceLog` | Presenting complaint, disposition |
 | `MedicinePlacementLog.ts` | `MedicinePlacementLog` | Specialty, learning points |
@@ -358,7 +356,6 @@ Patches `globalThis.crypto` with `expo-crypto` so Supabase PKCE S256 challenge w
 | `profiles` | `id` (FK auth.users), `email`, `display_name`, `role` (`user`/`admin`), `disabled`, `country`, `med_reg_hmac`, `med_reg_set_at` | Select: own row + admins. Update: own row (guards on role/disabled). Insert: via trigger only. |
 | `case_logs` | All `CaseLog` fields + `server_updated_at`, `deleted_at` | Select/Insert/Update/Delete: owner or admin. Supervisor read via supervisor_user_id. |
 | `procedure_logs` | All `ProcedureLog` fields + sync fields | Same as case_logs |
-| `ward_review_logs` | WardReviewLog fields | 4 RLS policies (select/insert/update/delete) |
 | `transfer_logs` | TransferLog fields | Same |
 | `ed_attendance_logs` | EDAttendanceLog fields | Same |
 | `medicine_placement_logs` | MedicinePlacementLog fields | Same |
@@ -385,8 +382,9 @@ Patches `globalThis.crypto` with `expo-crypto` so Supabase PKCE S256 challenge w
 | `20260420000001_audit_log.sql` | `audit_log` table + triggers on case/procedure logs |
 | `20260420000002_rls_clinical_tables.sql` | RLS on `case_logs` + `procedure_logs`, `guard_approval_columns` trigger |
 | `20260424000003_case_logs_parity_columns.sql` | Additional columns on `case_logs` for UI parity |
-| `20260424000004_new_clinical_tables.sql` | 9 new clinical tables (ward_review, transfer, ed_attendance, medicine_placement, airway, arterial_line, cvc, uss, regional_block) |
+| `20260424000004_new_clinical_tables.sql` | 9 new clinical tables (ward_review, transfer, ed_attendance, medicine_placement, airway, arterial_line, cvc, uss, regional_block) — ward_review subsequently dropped |
 | `20260424000005_rls_new_clinical_tables.sql` | 36 RLS policies (4 × 9 tables) + `bump_server_updated_at` + `guard_approval_columns` on all 9 new tables |
+| `20260509000000_drop_ward_review_logs.sql` | Drops `ward_review_logs` table, trigger, and guard function (feature removed) |
 
 ### Edge Functions (`supabase/functions/`)
 

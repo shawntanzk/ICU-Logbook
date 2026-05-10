@@ -161,27 +161,6 @@ export interface RegionalBlockLog {
   deleted_at: string | null
 }
 
-export interface WardReviewLog {
-  id: string
-  owner_id: string
-  date: string
-  patient_age: number | null
-  patient_sex: string | null
-  referring_specialty: string | null
-  diagnosis: string | null
-  icd10_code: string | null
-  review_outcome: string | null
-  communicated_with_relatives: boolean | null
-  cobatrice_domains: string[]
-  reflection: string | null
-  supervision_level: string | null
-  supervisor_user_id: string | null
-  external_supervisor_name: string | null
-  approved_by: string | null
-  approved_at: string | null
-  deleted_at: string | null
-}
-
 export interface TransferLog {
   id: string
   owner_id: string

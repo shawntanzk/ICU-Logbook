@@ -29,14 +29,6 @@ const LOG_TYPES: LogType[] = [
     group: 'Clinical Episodes',
   },
   {
-    route: 'AddWardReview',
-    icon: 'clipboard-outline',
-    color: '#6366F1',
-    title: 'Ward Review',
-    subtitle: 'Review of at-risk patient on general ward',
-    group: 'Clinical Episodes',
-  },
-  {
     route: 'AddTransfer',
     icon: 'car-outline',
     color: '#F59E0B',

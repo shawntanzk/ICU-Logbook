@@ -30,7 +30,6 @@ export default function CompetencyPage() {
     // Gather all tables that have cobatrice_domains
     const tables = [
       'case_logs',
-      'ward_review_logs',
       'transfer_logs',
       'ed_attendance_logs',
       'medicine_placement_logs',
