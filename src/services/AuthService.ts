@@ -66,6 +66,28 @@ async function loadProfile(userId: string): Promise<ProfileRow | null> {
   return (data as ProfileRow) ?? null;
 }
 
+// ─── Update country ───────────────────────────────────────────────────────────
+// Updates the user's country on their profile. The edge function triggers an
+// automatic write to country_history, preserving the full audit trail.
+export async function updateCountry(country: string): Promise<{ ok: boolean; error?: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return { ok: false, error: 'Not authenticated.' };
+  const res = await fetch(
+    'https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/update-country',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ country: country.toUpperCase() }),
+    }
+  );
+  const payload = await res.json() as { ok: boolean; error?: string; country?: string };
+  if (!payload?.ok) return { ok: false, error: payload?.error ?? 'Could not update country.' };
+  return { ok: true };
+}
+
 // ─── Set medical registration (called post-signup for OAuth users) ────────────
 // The actual hashing happens inside the 'register' or 'set-registration'
 // Edge Function — the plaintext never reaches the database.

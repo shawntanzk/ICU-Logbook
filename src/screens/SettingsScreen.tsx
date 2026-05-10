@@ -90,7 +90,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { cases } = useCaseStore();
   const { procedures } = useProcedureStore();
   const { isSyncing, status, lastResult, error, sync, forceFullSync, refreshStatus } = useSyncStore();
-  const { userName, role, logout } = useAuthStore();
+  const { userName, role, country, logout } = useAuthStore();
   const consentStatus = useConsentStore((s) => s.status);
   const { offlineOnly, setOfflineOnly } = useOfflineStore();
   const { isGuest, exitGuestMode } = useGuestStore();
@@ -317,6 +317,24 @@ export function SettingsScreen({ navigation }: Props) {
           </Card>
         )}
 
+        {/* Profile — hidden for guests */}
+        {!isGuest && (
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Profile</Text>
+            <SettingRow
+              icon="globe-outline"
+              label="Country"
+              value={country ?? 'Not set'}
+              onPress={() => navigation.navigate('ChangeCountry')}
+            />
+            <SettingRow
+              icon="key-outline"
+              label="Change password"
+              onPress={() => navigation.navigate('ChangePassword')}
+            />
+          </Card>
+        )}
+
         {/* Sync panel — hidden for guests */}
         {!isGuest && <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Cloud Sync</Text>
@@ -446,12 +464,6 @@ export function SettingsScreen({ navigation }: Props) {
               onPress={googleLinked ? handleUnlinkGoogle : handleLinkGoogle}
               loading={identityBusy}
               destructive={googleLinked}
-            />
-
-            <SettingRow
-              icon="key-outline"
-              label="Change password"
-              onPress={() => navigation.navigate('ChangePassword')}
             />
 
             <View style={styles.syncNote}>

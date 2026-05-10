@@ -39,6 +39,7 @@ import { ConsentScreen } from '../screens/ConsentScreen';
 import { ExportScreen } from '../screens/ExportScreen';
 import { AdminPanelScreen } from '../screens/AdminPanelScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
+import { ChangeCountryScreen } from '../screens/ChangeCountryScreen';
 import { ConflictsScreen } from '../screens/ConflictsScreen';
 import { TermsScreen } from '../screens/TermsScreen';
 
@@ -129,6 +130,7 @@ function SettingsNavigator() {
       <SettingsStack.Screen name="Export" component={ExportScreen} options={{ title: 'Export Data' }} />
       <SettingsStack.Screen name="AdminPanel" component={AdminPanelScreen} options={{ title: 'Admin Panel' }} />
       <SettingsStack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+      <SettingsStack.Screen name="ChangeCountry" component={ChangeCountryScreen} options={{ title: 'Change Country' }} />
       <SettingsStack.Screen name="Conflicts" component={ConflictsScreen} options={{ title: 'Sync Conflicts' }} />
     </SettingsStack.Navigator>
   );
