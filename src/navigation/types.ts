@@ -37,7 +37,6 @@ export type LogStackParamList = {
   // Clinical episodes
   AddCase: undefined;
   AddTransfer: undefined;
-  AddED: undefined;
   AddMedicinePlacement: undefined;
   // Procedures
   AddAirway: { caseId?: string };

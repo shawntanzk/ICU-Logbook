@@ -37,14 +37,6 @@ const LOG_TYPES: LogType[] = [
     group: 'Clinical Episodes',
   },
   {
-    route: 'AddED',
-    icon: 'flash-outline',
-    color: '#EF4444',
-    title: 'ED Attendance',
-    subtitle: 'Emergency department critical care involvement',
-    group: 'Clinical Episodes',
-  },
-  {
     route: 'AddMedicinePlacement',
     icon: 'medkit-outline',
     color: '#22C55E',

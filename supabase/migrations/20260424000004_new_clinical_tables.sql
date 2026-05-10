@@ -325,51 +325,6 @@ CREATE INDEX IF NOT EXISTS idx_transfer_logs_date       ON public.transfer_logs 
 CREATE INDEX IF NOT EXISTS idx_transfer_logs_sync       ON public.transfer_logs (synced, conflict);
 CREATE INDEX IF NOT EXISTS idx_transfer_logs_supervisor ON public.transfer_logs (supervisor_user_id);
 
--- ── ed_attendance_logs ───────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.ed_attendance_logs (
-  id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  date                        DATE NOT NULL,
-  patient_age                 TEXT,
-  patient_sex                 TEXT,
-  diagnosis                   TEXT NOT NULL,
-  icd10_code                  TEXT NOT NULL DEFAULT '',
-  icu_admission               BOOLEAN NOT NULL DEFAULT false,
-  presenting_category         TEXT,
-  cardiac_arrest              BOOLEAN NOT NULL DEFAULT false,
-  communicated_with_relatives BOOLEAN NOT NULL DEFAULT false,
-  cobatrice_domains           JSONB NOT NULL DEFAULT '[]',
-  reflection                  TEXT,
-  supervision_level           TEXT NOT NULL,
-  supervisor_user_id          UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  external_supervisor_name    TEXT,
-  -- governance
-  owner_id                    UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  approved_by                 UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-  approved_at                 TIMESTAMPTZ,
-  created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  synced                      BOOLEAN NOT NULL DEFAULT false,
-  conflict                    BOOLEAN NOT NULL DEFAULT false,
-  deleted_at                  TIMESTAMPTZ,
-  server_updated_at           TIMESTAMPTZ,
-  sync_retry_count            SMALLINT NOT NULL DEFAULT 0,
-  sync_last_error             TEXT,
-  -- semantic
-  schema_version              TEXT NOT NULL DEFAULT '3.0.0',
-  diagnosis_coded             JSONB,
-  cobatrice_domains_coded     JSONB NOT NULL DEFAULT '[]',
-  supervision_level_coded     JSONB,
-  provenance                  JSONB,
-  quality                     JSONB,
-  consent_status              TEXT NOT NULL DEFAULT 'anonymous',
-  license                     TEXT NOT NULL DEFAULT 'CC-BY-NC-4.0'
-);
-
-CREATE INDEX IF NOT EXISTS idx_ed_attendance_logs_owner      ON public.ed_attendance_logs (owner_id);
-CREATE INDEX IF NOT EXISTS idx_ed_attendance_logs_date       ON public.ed_attendance_logs (date);
-CREATE INDEX IF NOT EXISTS idx_ed_attendance_logs_sync       ON public.ed_attendance_logs (synced, conflict);
-CREATE INDEX IF NOT EXISTS idx_ed_attendance_logs_supervisor ON public.ed_attendance_logs (supervisor_user_id);
-
 -- ── medicine_placement_logs ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.medicine_placement_logs (
   id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),

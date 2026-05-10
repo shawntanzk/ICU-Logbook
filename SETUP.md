@@ -125,7 +125,7 @@ The app talks to Supabase for **auth + data sync**. SQLite is the local cache �
    - `20260420000000_profiles.sql` — `profiles` table + auto-create trigger on `auth.users` insert + RLS on profiles.
    - `20260420000001_audit_log.sql` — append-only `audit_log` table with triggers on clinical tables.
    - `20260420000002_rls_clinical_tables.sql` — RLS policies on `case_logs` / `procedure_logs` plus supervisor-column guard triggers.
-   - `20260421000000_new_clinical_tables.sql` — 9 new clinical tables (ward reviews, transfers, ED attendances, medicine placements, resuscitations, reflections, sick leave, teaching, regional anaesthesia).
+   - `20260421000000_new_clinical_tables.sql` — new clinical tables (transfers, medicine placements, airway, arterial line, CVC, USS, regional block — ward reviews and ED attendances subsequently removed).
    - `20260421000001_rls_new_clinical_tables.sql` — initial RLS on the 9 new tables.
    - `20260422000000_profiles_registration_fields_v1.sql` — adds `country`, `med_reg_hmac`, `med_reg_set_at` columns to `profiles` with indexes + updated trigger.
    - `20260422000001_rls_new_clinical_tables_v10.sql` — finalised 36-policy RLS set (4 policies × 9 tables) + approval-column guard + `bump_server_updated_at` triggers.

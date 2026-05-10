@@ -213,7 +213,7 @@ who need a reliable, professional digital logbook for their training portfolio.
 
 WHAT YOU CAN LOG
 • ICU / HDU cases — diagnosis, organ systems, COBATRICE domains, supervision level
-• Ward reviews, ED attendances, transfers, medicine placements
+• Transfers, medicine placements
 • Procedures — airway management, arterial lines, CVC insertion, ultrasound,
   regional anaesthesia
 • Reflections and learning points for each entry

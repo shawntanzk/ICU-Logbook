@@ -13,7 +13,6 @@ const CLINICAL_TABLES = [
   'uss_logs',
   'regional_block_logs',
   'transfer_logs',
-  'ed_attendance_logs',
   'medicine_placement_logs',
 ]
 

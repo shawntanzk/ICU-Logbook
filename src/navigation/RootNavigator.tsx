@@ -46,7 +46,6 @@ import { TermsScreen } from '../screens/TermsScreen';
 // New log entry screens
 import { LogHubScreen } from '../screens/LogHubScreen';
 import { AddTransferScreen } from '../screens/AddTransferScreen';
-import { AddEDScreen } from '../screens/AddEDScreen';
 import { AddMedicinePlacementScreen } from '../screens/AddMedicinePlacementScreen';
 import { AddAirwayScreen } from '../screens/AddAirwayScreen';
 import { AddArterialLineScreen } from '../screens/AddArterialLineScreen';
@@ -110,7 +109,6 @@ function LogNavigator() {
       {/* Clinical episodes */}
       <LogStack.Screen name="AddCase" component={AddCaseScreen} options={{ title: 'ICU / HDU Case' }} />
       <LogStack.Screen name="AddTransfer" component={AddTransferScreen} options={{ title: 'Transfer' }} />
-      <LogStack.Screen name="AddED" component={AddEDScreen} options={{ title: 'ED Attendance' }} />
       <LogStack.Screen name="AddMedicinePlacement" component={AddMedicinePlacementScreen} options={{ title: 'Medicine Placement' }} />
       {/* Procedure sub-entries */}
       <LogStack.Screen name="AddAirway" component={AddAirwayScreen} options={{ title: 'Airway Management' }} />

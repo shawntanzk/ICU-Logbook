@@ -1,7 +1,6 @@
 import { CaseService } from '../CaseService';
 import { ProcedureService } from '../ProcedureService';
 import { TransferService } from '../TransferService';
-import { EDAttendanceService } from '../EDAttendanceService';
 import { MedicinePlacementService } from '../MedicinePlacementService';
 import { AirwayService } from '../AirwayService';
 import { ArterialLineService } from '../ArterialLineService';
@@ -51,11 +50,10 @@ export async function exportAll(
       // applied (this is the trainee's own portfolio export, not a research
       // dataset). Consent filtering still applies to case_logs.
       const [
-        transfers, edAttendances, medicinePlacements,
+        transfers, medicinePlacements,
         airways, arterialLines, cvcs, ussStudies, regionalBlocks,
       ] = await Promise.all([
         TransferService.findAll(),
-        EDAttendanceService.findAll(),
         MedicinePlacementService.findAll(),
         AirwayService.findAll(),
         ArterialLineService.findAll(),
@@ -66,7 +64,6 @@ export async function exportAll(
       const csv = toARCPCsv({
         cases: filteredCases,
         transfers,
-        edAttendances,
         medicinePlacements,
         airways,
         arterialLines,
@@ -76,7 +73,7 @@ export async function exportAll(
       });
       const totalRecords =
         filteredCases.length + transfers.length +
-        edAttendances.length + medicinePlacements.length + airways.length +
+        medicinePlacements.length + airways.length +
         arterialLines.length + cvcs.length + ussStudies.length + regionalBlocks.length;
       return {
         format,

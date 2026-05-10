@@ -78,7 +78,6 @@ Reads from `useAuthStore`: `isLoggedIn`, `termsAccepted`, `profileComplete`.
 | Screen | Log type |
 |--------|---------|
 | `AddTransferScreen.tsx` | Patient transfer |
-| `AddEDScreen.tsx` | ED attendance |
 | `AddMedicinePlacementScreen.tsx` | Medicine placement |
 | `AddAirwayScreen.tsx` | Airway management |
 | `AddArterialLineScreen.tsx` | Arterial line |
@@ -357,7 +356,6 @@ Patches `globalThis.crypto` with `expo-crypto` so Supabase PKCE S256 challenge w
 | `case_logs` | All `CaseLog` fields + `server_updated_at`, `deleted_at` | Select/Insert/Update/Delete: owner or admin. Supervisor read via supervisor_user_id. |
 | `procedure_logs` | All `ProcedureLog` fields + sync fields | Same as case_logs |
 | `transfer_logs` | TransferLog fields | Same |
-| `ed_attendance_logs` | EDAttendanceLog fields | Same |
 | `medicine_placement_logs` | MedicinePlacementLog fields | Same |
 | `airway_logs` | AirwayLog fields | Same |
 | `arterial_line_logs` | ArterialLineLog fields | Same |
@@ -382,8 +380,8 @@ Patches `globalThis.crypto` with `expo-crypto` so Supabase PKCE S256 challenge w
 | `20260420000001_audit_log.sql` | `audit_log` table + triggers on case/procedure logs |
 | `20260420000002_rls_clinical_tables.sql` | RLS on `case_logs` + `procedure_logs`, `guard_approval_columns` trigger |
 | `20260424000003_case_logs_parity_columns.sql` | Additional columns on `case_logs` for UI parity |
-| `20260424000004_new_clinical_tables.sql` | 9 new clinical tables (ward_review, transfer, ed_attendance, medicine_placement, airway, arterial_line, cvc, uss, regional_block) — ward_review subsequently dropped |
-| `20260424000005_rls_new_clinical_tables.sql` | 36 RLS policies (4 × 9 tables) + `bump_server_updated_at` + `guard_approval_columns` on all 9 new tables |
+| `20260424000004_new_clinical_tables.sql` | 8 new clinical tables (transfer, medicine_placement, airway, arterial_line, cvc, uss, regional_block) — ward_review and ed_attendance subsequently dropped |
+| `20260424000005_rls_new_clinical_tables.sql` | RLS policies + `bump_server_updated_at` + `guard_approval_columns` on remaining new tables |
 | `20260509000000_drop_ward_review_logs.sql` | Drops `ward_review_logs` table, trigger, and guard function (feature removed) |
 
 ### Edge Functions (`supabase/functions/`)
