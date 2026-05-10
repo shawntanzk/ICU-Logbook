@@ -9,6 +9,7 @@ import {
   sendPasswordResetEmail as svcSendPasswordReset,
   updatePassword as svcUpdatePassword,
   setMedicalRegistration as svcSetMedicalRegistration,
+  updateCountry as svcUpdateCountry,
 } from '../services/AuthService';
 import { setAuthState } from '../services/authState';
 import { setReportingUser } from '../services/errorReporting';
@@ -60,6 +61,7 @@ interface AuthStore {
   signInWithGoogle: () => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;
   updatePassword: (newPassword: string) => Promise<AuthActionResult>;
+  updateCountry: (country: string) => Promise<AuthActionResult>;
   completeRegistration: (input: { country: string; medRegNumber: string }) => Promise<AuthActionResult>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
@@ -143,6 +145,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
     await svcSignOut();
     resetDataStores();
     apply(set, null);
+  },
+
+  updateCountry: async (country) => {
+    try {
+      const result = await svcUpdateCountry(country);
+      if (!result.ok) return { ok: false, error: result.error };
+      set({ country: country.toUpperCase() });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Unknown error.' };
+    }
   },
 
   completeRegistration: async (input) => {

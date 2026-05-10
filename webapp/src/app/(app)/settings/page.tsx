@@ -5,6 +5,8 @@ import { useAppStore } from '@/store/appStore'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
+import { COUNTRIES } from '@/lib/data'
 import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
@@ -16,9 +18,11 @@ export default function SettingsPage() {
   const setAutoSync = useAppStore((s) => s.setAutoSync)
 
   const [displayName, setDisplayName] = useState(user?.display_name ?? '')
+  const [country, setCountry] = useState(user?.country ?? '')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingCountry, setSavingCountry] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -26,6 +30,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (user?.display_name) setDisplayName(user.display_name)
+    if (user?.country) setCountry(user.country)
   }, [user])
 
   const handleSaveName = async (e: React.FormEvent) => {
@@ -43,6 +48,32 @@ export default function SettingsPage() {
       .single()
     if (error) { setError(error.message) } else { setMessage('Name updated!'); if (data) setUser(data) }
     setSaving(false)
+  }
+
+  const handleSaveCountry = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!country) { setError('Please select a country'); return }
+    setSavingCountry(true)
+    setError('')
+    setMessage('')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const res = await fetch('https://qbkrgjbcizpcunwmzhrq.supabase.co/functions/v1/update-country', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ country }),
+    })
+    const payload = await res.json()
+    if (!res.ok) {
+      setError(payload.error ?? 'Failed to update country')
+    } else {
+      setMessage('Country updated!')
+      setUser({ ...user!, country: payload.country })
+    }
+    setSavingCountry(false)
   }
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -85,13 +116,23 @@ export default function SettingsPage() {
           <p className="text-sm text-gray-500">Email</p>
           <p className="text-sm font-medium text-gray-900">{user?.email}</p>
         </div>
-        <div className="mb-4 space-y-1">
-          <p className="text-sm text-gray-500">Country</p>
-          <p className="text-sm font-medium text-gray-900">{user?.country ?? '—'}</p>
-        </div>
-        <form onSubmit={handleSaveName} className="space-y-3">
+        <form onSubmit={handleSaveName} className="space-y-3 mb-6">
           <Input label="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           <Button type="submit" loading={saving} size="sm">Save name</Button>
+        </form>
+        <form onSubmit={handleSaveCountry} className="space-y-3">
+          <Select
+            label="Country"
+            options={COUNTRIES}
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="Select country"
+            required
+          />
+          <p className="text-xs text-gray-500">
+            Changing your country is recorded — entries are always associated with the country you had at the time of logging.
+          </p>
+          <Button type="submit" loading={savingCountry} size="sm">Save country</Button>
         </form>
       </Card>
 

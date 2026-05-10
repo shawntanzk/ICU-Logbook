@@ -64,6 +64,7 @@ export type SettingsStackParamList = {
   Export: undefined;
   AdminPanel: undefined;
   ChangePassword: undefined;
+  ChangeCountry: undefined;
   Conflicts: undefined;
   Terms: undefined;
 };
