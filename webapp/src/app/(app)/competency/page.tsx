@@ -31,7 +31,6 @@ export default function CompetencyPage() {
     const tables = [
       'case_logs',
       'transfer_logs',
-      'ed_attendance_logs',
       'medicine_placement_logs',
     ]
 

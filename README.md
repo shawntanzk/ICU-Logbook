@@ -62,8 +62,6 @@ Supervision and observation are recorded **per record** via user pickers — not
 
 ### Clinical Log Entry (10 entry types)
 - **ICU / HDU Cases** — date, diagnosis, ICD-10, organ systems, CoBaTrICE domains, supervision level, patient demographics, level of care, involvement, cardiac arrest flag, outcome, relative communication, teaching delivered, reflection
-- **Ward Reviews** — ward, primary reason, patient demographics, outcome
-- **ED Attendances** — presentation, triage category, outcome
 - **Transfers** — origin/destination, clinical indication, team composition
 - **Medicine Placements** — specialty, duration, learning objectives
 - **Airway Management** — device, grade, technique, intubation success

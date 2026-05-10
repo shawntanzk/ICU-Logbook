@@ -1,4 +1,4 @@
-import type { CaseLog, ProcedureLog, AirwayLog, ArterialLineLog, CVCLog, USSLog, RegionalBlockLog, TransferLog, EDAttendanceLog, MedicinePlacementLog } from '@/types/database'
+import type { CaseLog, ProcedureLog, AirwayLog, ArterialLineLog, CVCLog, USSLog, RegionalBlockLog, TransferLog, MedicinePlacementLog } from '@/types/database'
 import { formatDate } from './utils'
 
 function escapeCsv(val: unknown): string {
@@ -150,22 +150,6 @@ export function exportTransfersToCsv(logs: TransferLog[]) {
     l.approved_at ? 'Yes' : 'No',
   ]))
   downloadCsv([headers.join(','), ...rows].join('\n'), 'icu-transfers.csv')
-}
-
-export function exportEdToCsv(logs: EDAttendanceLog[]) {
-  const headers = ['Date', 'Diagnosis', 'Presenting Category', 'ICU Admission', 'Cardiac Arrest', 'COBATRICE Domains', 'Reflection', 'Supervision', 'Approved']
-  const rows = logs.map(l => rowToCsv([
-    formatDate(l.date),
-    l.diagnosis,
-    l.presenting_category,
-    l.icu_admission,
-    l.cardiac_arrest,
-    l.cobatrice_domains,
-    l.reflection,
-    l.supervision_level,
-    l.approved_at ? 'Yes' : 'No',
-  ]))
-  downloadCsv([headers.join(','), ...rows].join('\n'), 'icu-ed-attendances.csv')
 }
 
 export function exportMedicineToCsv(logs: MedicinePlacementLog[]) {

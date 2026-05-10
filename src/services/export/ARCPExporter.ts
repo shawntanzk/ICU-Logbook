@@ -12,7 +12,6 @@
 
 import { CaseLog } from '../../models/CaseLog';
 import { TransferLog } from '../../models/TransferLog';
-import { EDAttendanceLog } from '../../models/EDAttendanceLog';
 import { MedicinePlacementLog } from '../../models/MedicinePlacementLog';
 import { AirwayLog } from '../../models/AirwayLog';
 import { ArterialLineLog } from '../../models/ArterialLineLog';
@@ -128,34 +127,6 @@ function transfersSection(records: TransferLog[]): string {
     )
   );
   return [sectionHeader('Transfers', records.length), row(...cols), ...dataRows].join('\n');
-}
-
-function edSection(records: EDAttendanceLog[]): string {
-  const cols = [
-    'Date', 'Age', 'Sex', 'Diagnosis', 'ICD-10',
-    'Presenting Category', 'Cardiac Arrest', 'ICU Admission',
-    'Communication with Relatives', 'CoBaTrICE Domains',
-    'Supervision Level', 'Supervisor (ID)', 'Supervisor (off-system)', 'Reflection',
-  ];
-  const dataRows = records.map((r) =>
-    row(
-      r.date,
-      r.patientAge ?? '',
-      r.patientSex ?? '',
-      r.diagnosis,
-      r.icd10Code ?? '',
-      r.presentingCategory ?? '',
-      bool(r.cardiacArrest),
-      bool(r.icuAdmission),
-      bool(r.communicatedWithRelatives),
-      arr(r.cobatriceDomains),
-      r.supervisionLevel,
-      r.supervisorUserId ?? '',
-      r.externalSupervisorName ?? '',
-      r.reflection ?? '',
-    )
-  );
-  return [sectionHeader('ED Attendances', records.length), row(...cols), ...dataRows].join('\n');
 }
 
 function medicinePlacementsSection(records: MedicinePlacementLog[]): string {
@@ -308,7 +279,6 @@ function regionalBlockSection(records: RegionalBlockLog[]): string {
 export interface ARCPData {
   cases: CaseLog[];
   transfers: TransferLog[];
-  edAttendances: EDAttendanceLog[];
   medicinePlacements: MedicinePlacementLog[];
   airways: AirwayLog[];
   arterialLines: ArterialLineLog[];
@@ -321,7 +291,7 @@ export interface ARCPData {
 export function toARCPCsv(data: ARCPData): string {
   const total =
     data.cases.length + data.transfers.length +
-    data.edAttendances.length + data.medicinePlacements.length +
+    data.medicinePlacements.length +
     data.airways.length + data.arterialLines.length + data.cvcs.length +
     data.ussStudies.length + data.regionalBlocks.length;
 
@@ -336,7 +306,6 @@ export function toARCPCsv(data: ARCPData): string {
   const sections = [
     casesSection(data.cases),
     transfersSection(data.transfers),
-    edSection(data.edAttendances),
     medicinePlacementsSection(data.medicinePlacements),
     airwaySection(data.airways),
     arterialLineSection(data.arterialLines),

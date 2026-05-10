@@ -36,7 +36,7 @@ export default function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [cases, procedures, airway, arterial, cvc, uss, rb, transfers, ed, medicine] = await Promise.all([
+    const [cases, procedures, airway, arterial, cvc, uss, rb, transfers, medicine] = await Promise.all([
       supabase.from('case_logs').select('id, date, diagnosis, approved_at').is('deleted_at', null).eq('owner_id', user.id),
       supabase.from('procedure_logs').select('id, created_at, procedure_type, approved_at').is('deleted_at', null).eq('owner_id', user.id),
       supabase.from('airway_logs').select('id, date, approved_at').is('deleted_at', null).eq('owner_id', user.id),
@@ -45,7 +45,6 @@ export default function DashboardPage() {
       supabase.from('uss_logs').select('id, date, approved_at').is('deleted_at', null).eq('owner_id', user.id),
       supabase.from('regional_block_logs').select('id, date, approved_at').is('deleted_at', null).eq('owner_id', user.id),
       supabase.from('transfer_logs').select('id, date, approved_at').is('deleted_at', null).eq('owner_id', user.id),
-      supabase.from('ed_attendance_logs').select('id, date, approved_at').is('deleted_at', null).eq('owner_id', user.id),
       supabase.from('medicine_placement_logs').select('id, start_date, approved_at').is('deleted_at', null).eq('owner_id', user.id),
     ])
 
@@ -62,7 +61,7 @@ export default function DashboardPage() {
       ...(airway.data ?? []), ...(arterial.data ?? []),
       ...(cvc.data ?? []), ...(uss.data ?? []),
       ...(rb.data ?? []),
-      ...(transfers.data ?? []), ...(ed.data ?? []),
+      ...(transfers.data ?? []),
       ...(medicine.data ?? []),
     ]
 

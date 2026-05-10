@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/Button'
 import {
   exportCasesToCsv, exportProceduresToCsv, exportAirwayToCsv,
   exportArterialLineToCsv, exportCvcToCsv, exportUssToCSV,
-  exportRegionalBlockToCsv, exportTransfersToCsv,
-  exportEdToCsv, exportMedicineToCsv,
+  exportRegionalBlockToCsv, exportTransfersToCsv, exportMedicineToCsv,
 } from '@/lib/export'
-import type { CaseLog, ProcedureLog, AirwayLog, ArterialLineLog, CVCLog, USSLog, RegionalBlockLog, TransferLog, EDAttendanceLog, MedicinePlacementLog } from '@/types/database'
+import type { CaseLog, ProcedureLog, AirwayLog, ArterialLineLog, CVCLog, USSLog, RegionalBlockLog, TransferLog, MedicinePlacementLog } from '@/types/database'
 
 interface ExportItem {
   label: string
@@ -27,7 +26,6 @@ const EXPORTS: ExportItem[] = [
   { label: 'Ultrasound', description: 'Point-of-care USS logs', table: 'uss_logs', exportFn: (d) => exportUssToCSV(d as USSLog[]) },
   { label: 'Regional Blocks', description: 'Regional anaesthesia logs', table: 'regional_block_logs', exportFn: (d) => exportRegionalBlockToCsv(d as RegionalBlockLog[]) },
   { label: 'Transfers', description: 'Transfer logs', table: 'transfer_logs', exportFn: (d) => exportTransfersToCsv(d as TransferLog[]) },
-  { label: 'ED Attendances', description: 'Emergency department logs', table: 'ed_attendance_logs', exportFn: (d) => exportEdToCsv(d as EDAttendanceLog[]) },
   { label: 'Medicine Placements', description: 'Medicine and specialty placements', table: 'medicine_placement_logs', exportFn: (d) => exportMedicineToCsv(d as MedicinePlacementLog[]) },
 ]
 
